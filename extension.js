@@ -125,7 +125,9 @@ function checkGitAvailability() {
 
 function activate(context) {
   checkGitAvailability();
-  enabled = vscode.workspace.getConfiguration('inlineBlameMini').get('enabled', true);
+  enabled = vscode.workspace
+    .getConfiguration('inlineBlameMini')
+    .get('enabled', true);
   updateDecorationType();
   statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -248,7 +250,9 @@ function hookEvents(context) {
   const onConfig = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration('inlineBlameMini')) {
       if (event.affectsConfiguration('inlineBlameMini.enabled')) {
-        enabled = vscode.workspace.getConfiguration('inlineBlameMini').get('enabled', true);
+        enabled = vscode.workspace
+          .getConfiguration('inlineBlameMini')
+          .get('enabled', true);
       }
 
       if (event.affectsConfiguration('inlineBlameMini.debounceDelay')) {
