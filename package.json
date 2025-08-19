@@ -4,6 +4,16 @@
   "description": "Lightweight git blame information for the current cursor line",
   "version": "0.0.1",
   "publisher": "JoaoPauloCMarra",
+  "categories": [
+    "SCM Providers"
+  ],
+  "keywords": [
+    "git",
+    "blame",
+    "scm",
+    "inline",
+    "lightweight"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/JoaoPauloCMarra/inline-blame-mini"
@@ -12,7 +22,7 @@
     "vscode": "^1.103.0"
   },
   "activationEvents": [
-    "onStartupFinished"
+    "onWorkspaceContains:.git"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -144,7 +154,9 @@
     "format:check": "bunx prettier --check .",
     "package": "bunx vsce package",
     "dev": "bun run lint && bun run format",
-    "build": "bun run package"
+    "build": "bun run package",
+    "vscode:package": "vsce package",
+    "vscode:publish": "vsce publish"
   },
   "devDependencies": {
     "@types/vscode": "^1.103.0",

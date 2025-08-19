@@ -5,6 +5,8 @@ let decorationType;
 let statusBar;
 let enabled = true;
 let disposables = [];
+let gitAvailable = true;
+const userCache = new Map();
 
 function updateDecorationType() {
   if (decorationType) {
@@ -105,7 +107,20 @@ function getPresetStyle(preset) {
   return presets[preset] || presets.subtle;
 }
 
+function checkGitAvailability() {
+  execFile('git', ['--version'], err => {
+    if (err) {
+      gitAvailable = false;
+      vscode.window.showInformationMessage(
+        'Git not found in PATH. Inline Blame Mini will be disabled.',
+        { modal: false }
+      );
+    }
+  });
+}
+
 function activate(context) {
+  checkGitAvailability();
   enabled = vscode.workspace.getConfiguration('inlineBlameMini').get('enabled');
   updateDecorationType();
   statusBar = vscode.window.createStatusBarItem(
@@ -182,6 +197,12 @@ function refresh() {
   if (!editor) return;
 
   editor.setDecorations(decorationType, []);
+
+  if (!gitAvailable) {
+    statusBar.text = '$(git-commit) Git not available';
+    statusBar.tooltip = 'Git command not found in PATH';
+    return;
+  }
 
   if (!enabled) {
     statusBar.text = '$(git-commit) Inline Blame: Off';
@@ -362,6 +383,11 @@ function getFullCommitMessage(cwd, hash, cb) {
 }
 
 function getCurrentGitUser(cwd, cb) {
+  if (userCache.has(cwd)) {
+    cb(userCache.get(cwd));
+    return;
+  }
+
   const getUserName = new Promise(resolve => {
     execFile('git', ['config', 'user.name'], { cwd }, (err, stdout) => {
       resolve(err ? null : stdout.trim());
@@ -375,7 +401,9 @@ function getCurrentGitUser(cwd, cb) {
   });
 
   Promise.all([getUserName, getUserEmail]).then(([name, email]) => {
-    cb(name && email ? { name, email } : null);
+    const user = name && email ? { name, email } : null;
+    userCache.set(cwd, user);
+    cb(user);
   });
 }
 
