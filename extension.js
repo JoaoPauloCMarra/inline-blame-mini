@@ -53,12 +53,12 @@ function getStyleConfig(config) {
     style.fontWeight = fontWeight;
   }
 
-  const fontSize = config.get('style.fontSize', '');
+  const fontSize = config.get('style.fontSize', '0.9em');
   if (fontSize) {
     style.fontSize = fontSize;
   }
 
-  const opacity = config.get('style.opacity', 1.0);
+  const opacity = config.get('style.opacity', 0.8);
   if (opacity !== 1.0) {
     style.opacity = opacity.toString();
   }
@@ -114,23 +114,18 @@ function showStatusMessage(message) {
 function checkGitAvailability() {
   execFile('git', ['--version'], err => {
     if (err) {
-      console.error(`[Inline Blame] Git not found in PATH:`, err);
       gitAvailable = false;
       vscode.window.showInformationMessage(
         'Git not found in PATH. Inline Blame Mini will be disabled.',
         { modal: false }
       );
-    } else {
-      console.log(`[Inline Blame] Git is available`);
     }
   });
 }
 
 function activate(context) {
-  console.log(`[Inline Blame] Extension activating...`);
   checkGitAvailability();
-  enabled = vscode.workspace.getConfiguration('inlineBlameMini').get('enabled');
-  console.log(`[Inline Blame] Extension enabled: ${enabled}`);
+  enabled = vscode.workspace.getConfiguration('inlineBlameMini').get('enabled', true);
   updateDecorationType();
   statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -138,14 +133,12 @@ function activate(context) {
   );
   statusBar.command = 'inlineBlame.toggle';
   statusBar.show();
-  console.log(`[Inline Blame] Status bar created and shown`);
 
   context.subscriptions.push(
     decorationType,
     statusBar,
     vscode.commands.registerCommand('inlineBlame.toggle', () => {
       enabled = !enabled;
-      console.log(`[Inline Blame] Extension toggled to: ${enabled}`);
       vscode.workspace
         .getConfiguration('inlineBlameMini')
         .update('enabled', enabled, true);
@@ -155,7 +148,6 @@ function activate(context) {
     vscode.commands.registerCommand('inlineBlame.enable', () => {
       if (!enabled) {
         enabled = true;
-        console.log(`[Inline Blame] Extension enabled`);
         vscode.workspace
           .getConfiguration('inlineBlameMini')
           .update('enabled', enabled, true);
@@ -168,7 +160,6 @@ function activate(context) {
     vscode.commands.registerCommand('inlineBlame.disable', () => {
       if (enabled) {
         enabled = false;
-        console.log(`[Inline Blame] Extension disabled`);
         vscode.workspace
           .getConfiguration('inlineBlameMini')
           .update('enabled', enabled, true);
@@ -226,7 +217,6 @@ function activate(context) {
 
   hookEvents(context);
   refresh();
-  console.log(`[Inline Blame] Extension activation complete`);
 }
 
 function hookEvents(context) {
@@ -257,6 +247,10 @@ function hookEvents(context) {
 
   const onConfig = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration('inlineBlameMini')) {
+      if (event.affectsConfiguration('inlineBlameMini.enabled')) {
+        enabled = vscode.workspace.getConfiguration('inlineBlameMini').get('enabled', true);
+      }
+
       if (event.affectsConfiguration('inlineBlameMini.debounceDelay')) {
         disposables.forEach(d => d.dispose());
         hookEvents(context);
@@ -276,18 +270,14 @@ function hookEvents(context) {
 }
 
 function refresh() {
-  console.log(`[Inline Blame] Refresh called`);
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    console.log(`[Inline Blame] No active editor`);
     return;
   }
 
-  console.log(`[Inline Blame] Active file: ${editor.document.fileName}`);
   editor.setDecorations(decorationType, []);
 
   if (!gitAvailable) {
-    console.log(`[Inline Blame] Git not available`);
     statusBar.text = '$(error) Git not available';
     statusBar.tooltip = 'Git command not found in PATH. Please install Git.';
     statusBar.show();
@@ -295,7 +285,6 @@ function refresh() {
   }
 
   if (!enabled) {
-    console.log(`[Inline Blame] Extension disabled`);
     statusBar.text = '$(eye-closed) Inline Blame: Disabled';
     statusBar.tooltip =
       'Click to enable inline blame or press Ctrl+Alt+B to toggle';
@@ -304,25 +293,19 @@ function refresh() {
   }
 
   if (editor.document.isUntitled) {
-    console.log(`[Inline Blame] File is untitled`);
     statusBar.text = '$(new-file) Untitled file';
     statusBar.tooltip = 'Save the file first to see git blame information';
     statusBar.show();
     return;
   }
 
-  // For dirty files, we'll still try to show blame but with a warning
   const isDirty = editor.document.isDirty;
 
   const file = editor.document.fileName;
   const currentLine = editor.selection.active.line + 1;
 
-  console.log(
-    `[Inline Blame] Getting blame for line ${currentLine} in file ${file}${isDirty ? ' (dirty)' : ''}`
-  );
   blameLine(file, currentLine, blameData => {
     if (!blameData) {
-      console.log(`[Inline Blame] No blame data returned`);
       const dirtyIndicator = isDirty ? ' $(save) Unsaved changes' : '';
       statusBar.text = `$(warning) No git blame${dirtyIndicator}`;
       statusBar.tooltip =
@@ -332,9 +315,6 @@ function refresh() {
       return;
     }
 
-    console.log(`[Inline Blame] Blame data received:`, blameData);
-
-    // Handle uncommitted changes
     if (blameData.isUncommitted) {
       const inlineText = ` ${blameData.summary}`;
 
@@ -394,16 +374,10 @@ function refresh() {
 
 function blameLine(file, line, cb) {
   try {
-    console.log(
-      `[Inline Blame] Getting blame for file: ${file}, line: ${line}`
-    );
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(
       vscode.Uri.file(file)
     );
     if (!workspaceFolder) {
-      console.error(
-        `[Inline Blame] No workspace folder found for file: ${file}`
-      );
       cb(null);
       return;
     }
@@ -418,13 +392,8 @@ function blameLine(file, line, cb) {
       file,
     ];
 
-    console.log(`[Inline Blame] Running git command: git ${args.join(' ')}`);
     execFile('git', args, opts, (err, stdout, stderr) => {
       if (err || !stdout || stderr) {
-        console.error(`[Inline Blame] Git blame failed:`, {
-          err: err && err.message,
-          stderr,
-        });
         cb(null);
         return;
       }
@@ -448,12 +417,10 @@ function blameLine(file, line, cb) {
           return;
         }
 
-        // Check if this is an uncommitted change (git blame shows 00000000... for uncommitted lines)
         if (hash.startsWith('00000000')) {
-          console.log(`[Inline Blame] Uncommitted change detected`);
           cb({
             author: 'You',
-            time: Date.now() / 1000, // Current time
+            time: Date.now() / 1000,
             summary: 'Not committed yet, just now',
             hash: 'uncommitted',
             isPR: false,
@@ -522,15 +489,10 @@ function blameLine(file, line, cb) {
           });
         });
       } catch (parseError) {
-        console.error(
-          `[Inline Blame] Error parsing git blame output:`,
-          parseError
-        );
         cb(null);
       }
     });
   } catch (error) {
-    console.error(`[Inline Blame] Error in blameLine function:`, error);
     cb(null);
   }
 }
@@ -672,7 +634,7 @@ function relativeTime(ts) {
 function trimSummary(s) {
   const max = vscode.workspace
     .getConfiguration('inlineBlameMini')
-    .get('maxSummary');
+    .get('maxSummary', 150);
   if (s.length <= max) return s;
   return s.substring(0, max - 1) + '…';
 }
