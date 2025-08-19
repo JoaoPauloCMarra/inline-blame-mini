@@ -1,0 +1,156 @@
+{
+  "name": "inline-blame-mini",
+  "displayName": "Inline Blame Mini",
+  "description": "Lightweight git blame information for the current cursor line",
+  "version": "0.0.1",
+  "publisher": "JoaoPauloCMarra",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JoaoPauloCMarra/inline-blame-mini"
+  },
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "inlineBlame.toggle",
+        "title": "Inline Blame: Toggle"
+      }
+    ],
+    "configuration": {
+      "title": "Inline Blame Mini",
+      "properties": {
+        "inlineBlameMini.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable inline git blame"
+        },
+        "inlineBlameMini.maxSummary": {
+          "type": "number",
+          "default": 150,
+          "minimum": 10,
+          "maximum": 200,
+          "description": "Maximum length of commit message summary"
+        },
+        "inlineBlameMini.debounceDelay": {
+          "type": "number",
+          "default": 150,
+          "minimum": 50,
+          "maximum": 1000,
+          "description": "Delay in milliseconds before updating blame information when cursor moves"
+        },
+        "inlineBlameMini.showCurrentUserAsYou": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show 'You' instead of your name for commits you authored"
+        },
+        "inlineBlameMini.style.color": {
+          "type": "string",
+          "default": "editorCodeLens.foreground",
+          "description": "Color of the inline blame text. Can be a VS Code theme color ID or CSS color value (e.g., '#888888', 'rgba(136,136,136,0.7)')"
+        },
+        "inlineBlameMini.style.fontStyle": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic",
+            "oblique"
+          ],
+          "default": "italic",
+          "description": "Font style of the inline blame text"
+        },
+        "inlineBlameMini.style.fontWeight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "bold",
+            "lighter",
+            "bolder",
+            "100",
+            "200",
+            "300",
+            "400",
+            "500",
+            "600",
+            "700",
+            "800",
+            "900"
+          ],
+          "default": "normal",
+          "description": "Font weight of the inline blame text"
+        },
+        "inlineBlameMini.style.fontSize": {
+          "type": "string",
+          "default": "",
+          "description": "Font size of the inline blame text (e.g., '12px', '0.9em'). Empty string uses editor font size"
+        },
+        "inlineBlameMini.style.opacity": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0.1,
+          "maximum": 1,
+          "description": "Opacity of the inline blame text (0.1 to 1.0)"
+        },
+        "inlineBlameMini.style.margin": {
+          "type": "string",
+          "default": "0 0 0 1rem",
+          "description": "CSS margin for the inline blame text (e.g., '0 0 0 1rem', '0 20px')"
+        },
+        "inlineBlameMini.style.textDecoration": {
+          "type": "string",
+          "enum": [
+            "none",
+            "underline",
+            "line-through",
+            "overline"
+          ],
+          "default": "none",
+          "description": "Text decoration for the inline blame text"
+        },
+        "inlineBlameMini.style.preset": {
+          "type": "string",
+          "enum": [
+            "custom",
+            "subtle",
+            "prominent",
+            "minimal",
+            "modern"
+          ],
+          "default": "custom",
+          "description": "Apply a predefined style preset. 'custom' uses individual style settings."
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "inlineBlame.toggle",
+        "key": "ctrl+alt+b",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "scripts": {
+    "lint": "bunx eslint .",
+    "lint:fix": "bunx eslint . --fix",
+    "format": "bunx prettier --write .",
+    "format:check": "bunx prettier --check .",
+    "package": "bunx vsce package",
+    "dev": "bun run lint && bun run format",
+    "build": "bun run package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.103.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.6.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4"
+  }
+}

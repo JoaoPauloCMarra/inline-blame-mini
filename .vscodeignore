@@ -1,0 +1,45 @@
+# Development files
+.vscode/**
+.git
+.gitignore
+node_modules
+package-lock.json
+*.log
+
+# Documentation (exclude from extension package)
+*.md
+STYLE_EXAMPLES.md
+CHANGELOG.md
+
+# Testing
+test/**
+.nyc_output
+coverage
+.vscode-test/**
+
+# Linting and formatting
+.eslintrc*
+.eslintignore
+.prettierrc*
+.prettierignore
+eslint.config.*
+
+# Build artifacts
+*.vsix
+out/
+dist/
+lib/
+*.map
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Keep these files in the extension package:
+# extension.js
+# package.json
+# README.md (will be shown in marketplace)
