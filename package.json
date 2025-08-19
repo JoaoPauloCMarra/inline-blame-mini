@@ -32,16 +32,64 @@
     "vscode": "^1.103.0"
   },
   "activationEvents": [
-    "onWorkspaceContains:.git"
+    "onStartupFinished"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
         "command": "inlineBlame.toggle",
-        "title": "Inline Blame: Toggle"
+        "title": "Inline Blame: Toggle",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "inlineBlame.enable",
+        "title": "Inline Blame: Enable",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "inlineBlame.disable",
+        "title": "Inline Blame: Disable",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "inlineBlame.showCurrentLine",
+        "title": "Inline Blame: Show Current Line",
+        "icon": "$(info)"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "inlineBlame.showCurrentLine",
+          "group": "1_modification",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "inlineBlame.toggle",
+          "group": "1_modification",
+          "when": "editorTextFocus"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "inlineBlame.toggle",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "inlineBlame.enable",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "inlineBlame.disable",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "inlineBlame.showCurrentLine",
+          "when": "editorTextFocus"
+        }
+      ]
+    },
     "configuration": {
       "title": "Inline Blame Mini",
       "properties": {
@@ -106,12 +154,12 @@
         },
         "inlineBlameMini.style.fontSize": {
           "type": "string",
-          "default": "",
+          "default": "0.9em",
           "description": "Font size of the inline blame text (e.g., '12px', '0.9em'). Empty string uses editor font size"
         },
         "inlineBlameMini.style.opacity": {
           "type": "number",
-          "default": 1,
+          "default": 0.8,
           "minimum": 0.1,
           "maximum": 1,
           "description": "Opacity of the inline blame text (0.1 to 1.0)"
@@ -150,6 +198,19 @@
       {
         "command": "inlineBlame.toggle",
         "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "inlineBlame.enable",
+        "key": "ctrl+alt+shift+b",
+        "mac": "cmd+alt+shift+b",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "inlineBlame.showCurrentLine",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i",
         "when": "editorTextFocus"
       }
     ]
