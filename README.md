@@ -2,6 +2,8 @@
 
 A lightweight VS Code extension that shows git blame information inline for the current cursor line.
 
+![VS Code Demo](screenshots/vscode-demo.png)
+
 ## Features
 
 - **Performance Focused**: Only shows blame for the line where your cursor is positioned
