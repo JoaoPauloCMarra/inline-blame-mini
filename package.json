@@ -4,6 +4,12 @@
   "description": "Lightweight git blame information for the current cursor line",
   "version": "0.0.1",
   "publisher": "JoaoPauloCMarra",
+  "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#232323",
+    "theme": "dark"
+  },
   "categories": [
     "SCM Providers"
   ],
@@ -18,6 +24,10 @@
     "type": "git",
     "url": "https://github.com/JoaoPauloCMarra/inline-blame-mini"
   },
+  "bugs": {
+    "url": "https://github.com/JoaoPauloCMarra/inline-blame-mini/issues"
+  },
+  "homepage": "https://github.com/JoaoPauloCMarra/inline-blame-mini#readme",
   "engines": {
     "vscode": "^1.103.0"
   },
@@ -152,14 +162,15 @@
     "lint:fix": "bunx eslint . --fix",
     "format": "bunx prettier --write .",
     "format:check": "bunx prettier --check .",
-    "package": "bunx vsce package",
+    "package": "vsce package",
     "dev": "bun run lint && bun run format",
     "build": "bun run package",
-    "vscode:package": "vsce package",
-    "vscode:publish": "vsce publish"
+    "vscode:prepublish": "bun run lint && bun run format",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/vscode": "^1.103.0",
+    "@vscode/vsce": "^3.0.0",
     "eslint": "^8.57.0",
     "prettier": "^3.6.2",
     "eslint-config-prettier": "^10.1.8",
