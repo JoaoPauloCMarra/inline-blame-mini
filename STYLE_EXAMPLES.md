@@ -1,6 +1,17 @@
 # Style Examples
 
-Here are some style configurations you can copy to your VS Code settings:
+Here are some style configurations you can copy to your VS Code settings.
+
+## Color System
+
+The extension supports multiple color formats with automatic conversion and opacity:
+
+- **3-digit hex**: `#fff`, `#f00` (auto-expanded to 6-digit)
+- **6-digit hex**: `#ffffff`, `#ff0000`
+- **CSS names**: `red`, `blue`, `white`, `gray`, etc.
+- **VS Code themes**: `editorCodeLens.foreground`, `errorForeground`
+
+Invalid colors automatically fallback to `#888888`.
 
 ## Preset Styles
 
@@ -21,7 +32,7 @@ Here are some style configurations you can copy to your VS Code settings:
 ## Custom Styles
 
 ```json
-// GitHub-like style
+// GitHub-like style with 6-digit hex
 "inlineBlameMini.style.preset": "custom",
 "inlineBlameMini.style.color": "#586069",
 "inlineBlameMini.style.fontStyle": "normal",
@@ -29,26 +40,43 @@ Here are some style configurations you can copy to your VS Code settings:
 "inlineBlameMini.style.opacity": 0.8,
 "inlineBlameMini.style.margin": "0 0 0 2rem"
 
-// Colorful warning style
+// White text with low opacity (3-digit hex)
 "inlineBlameMini.style.preset": "custom",
-"inlineBlameMini.style.color": "#ff9500",
+"inlineBlameMini.style.color": "#fff",
+"inlineBlameMini.style.fontStyle": "italic",
+"inlineBlameMini.style.fontWeight": "lighter",
+"inlineBlameMini.style.opacity": 0.3
+
+// CSS color name with opacity
+"inlineBlameMini.style.preset": "custom",
+"inlineBlameMini.style.color": "orange",
 "inlineBlameMini.style.fontStyle": "italic",
 "inlineBlameMini.style.fontWeight": "bold",
 "inlineBlameMini.style.opacity": 0.9
 
-// Underlined and subtle
+// Preset override example
+"inlineBlameMini.style.preset": "modern",
+"inlineBlameMini.style.color": "red",
+"inlineBlameMini.style.opacity": 0.5
+
+// Underlined with VS Code theme color (no opacity)
 "inlineBlameMini.style.preset": "custom",
 "inlineBlameMini.style.color": "editorCodeLens.foreground",
 "inlineBlameMini.style.textDecoration": "underline",
-"inlineBlameMini.style.fontStyle": "normal",
-"inlineBlameMini.style.opacity": 0.6
+"inlineBlameMini.style.fontStyle": "normal"
 
-// Dark theme friendly
+// Dark theme friendly with fallback protection
 "inlineBlameMini.style.preset": "custom",
 "inlineBlameMini.style.color": "#7c7c7c",
 "inlineBlameMini.style.fontStyle": "italic",
 "inlineBlameMini.style.fontSize": "0.85em",
 "inlineBlameMini.style.opacity": 0.7
+
+// Invalid color example (auto-fallback to #888888)
+"inlineBlameMini.style.preset": "custom",
+"inlineBlameMini.style.color": "invalid-color-name",
+"inlineBlameMini.style.opacity": 0.6
+// → Results in rgba(136, 136, 136, 0.6)
 ```
 
 ## VS Code Theme Color References

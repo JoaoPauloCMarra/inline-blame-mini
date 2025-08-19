@@ -10,8 +10,10 @@ A lightweight VS Code extension that shows git blame information inline for the 
 - **Clean UI**: Displays author, time, and commit message inline with subtle styling
 - **PR Support**: Prioritizes showing Pull Request titles over commit messages
 - **Smart User Detection**: Shows "You" for your own commits (configurable)
-- **Configurable**: Customize display options and behavior
+- **Robust Color System**: Supports hex colors, CSS names, and VS Code theme colors with opacity
+- **Configurable**: Customize display options and behavior with preset styles or individual properties
 - **Smart Updates**: Only updates when you move to a different line (not on every cursor position change)
+- **Empty Line Detection**: Automatically skips empty lines to avoid unnecessary git blame calls
 
 ## How it works
 
@@ -50,7 +52,23 @@ You can customize the extension in VS Code Settings:
 
 ### Style Settings
 
-Choose between predefined presets or customize individual properties:
+The extension features a robust color and opacity system that supports multiple color formats:
+
+**Supported Color Formats:**
+
+- **3-digit hex**: `#fff`, `#f00`, `#abc` (automatically expanded to 6-digit)
+- **6-digit hex**: `#ffffff`, `#ff0000`, `#aabbcc`
+- **CSS color names**: `red`, `blue`, `green`, `white`, `gray`, etc.
+- **VS Code theme colors**: `editorCodeLens.foreground`, `errorForeground`, etc.
+
+**Color Processing:**
+
+- All colors (except VS Code theme colors) are converted to HEX format first
+- Invalid colors automatically fallback to `#888888` (gray)
+- Opacity is applied by converting HEX to RGBA format
+- VS Code theme colors bypass opacity and use the theme's native color
+
+**Preset System:**
 
 - `inlineBlameMini.style.preset`: Apply a predefined style preset:
   - `custom` - Use individual style settings (default)
@@ -59,30 +77,54 @@ Choose between predefined presets or customize individual properties:
   - `minimal` - Very subtle, small font, minimal spacing
   - `modern` - Clean modern look with custom colors
 
-### Custom Style Properties (when preset is 'custom')
+**Note**: Individual style properties override preset values, allowing you to use a preset as a base and customize specific properties.
 
-- `inlineBlameMini.style.color`: Color of the text (theme color ID or CSS color like '#888888')
+### Custom Style Properties
+
+- `inlineBlameMini.style.color`: Color of the text
+  - **Hex colors**: `#fff`, `#ffffff`, `#f00`, `#ff0000`
+  - **CSS names**: `red`, `blue`, `white`, `gray`, etc.
+  - **VS Code theme**: `editorCodeLens.foreground`, `errorForeground`
 - `inlineBlameMini.style.fontStyle`: Font style (`normal`, `italic`, `oblique`)
 - `inlineBlameMini.style.fontWeight`: Font weight (`normal`, `bold`, `100`-`900`)
 - `inlineBlameMini.style.fontSize`: Font size (e.g., '12px', '0.9em')
 - `inlineBlameMini.style.opacity`: Opacity from 0.1 to 1.0
+  - Works with hex colors and CSS color names
+  - Does not affect VS Code theme colors
 - `inlineBlameMini.style.margin`: CSS margin (e.g., '0 0 0 1rem')
 - `inlineBlameMini.style.textDecoration`: Text decoration (`none`, `underline`, `line-through`)
 
 ### Style Examples
 
 ```json
-// Subtle and minimal
+// Subtle preset
 "inlineBlameMini.style.preset": "subtle"
 
-// Custom red italic text
+// 3-digit hex with opacity (auto-expanded to #ff6b6b)
 "inlineBlameMini.style.preset": "custom",
-"inlineBlameMini.style.color": "#ff6b6b",
+"inlineBlameMini.style.color": "#f6b",
 "inlineBlameMini.style.fontStyle": "italic",
 "inlineBlameMini.style.opacity": 0.8
 
-// Use VS Code theme colors
+// CSS color name with opacity
+"inlineBlameMini.style.preset": "custom",
+"inlineBlameMini.style.color": "red",
+"inlineBlameMini.style.opacity": 0.5
+
+// White text with low opacity (works with both #fff and #ffffff)
+"inlineBlameMini.style.preset": "modern",
+"inlineBlameMini.style.color": "#fff",
+"inlineBlameMini.style.opacity": 0.3,
+"inlineBlameMini.style.fontSize": "0.9em",
+"inlineBlameMini.style.fontWeight": "lighter"
+
+// VS Code theme color (no opacity applied)
 "inlineBlameMini.style.color": "editorWarning.foreground"
+
+// Invalid color fallback example
+"inlineBlameMini.style.color": "invalid-color-name",
+"inlineBlameMini.style.opacity": 0.7
+// → Automatically falls back to rgba(136, 136, 136, 0.7)
 ```
 
 ## Requirements

@@ -8,64 +8,151 @@ let disposables = [];
 let gitAvailable = true;
 const userCache = new Map();
 
+function colorToHex(color) {
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    if (/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex)) {
+      if (hex.length === 3) {
+        const expanded =
+          '#' + hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+        return expanded;
+      }
+      return color;
+    }
+  }
+
+  const colorMap = {
+    red: '#ff0000',
+    green: '#008000',
+    blue: '#0000ff',
+    yellow: '#ffff00',
+    orange: '#ffa500',
+    purple: '#800080',
+    pink: '#ffc0cb',
+    brown: '#a52a2a',
+    black: '#000000',
+    white: '#ffffff',
+    gray: '#808080',
+    grey: '#808080',
+    cyan: '#00ffff',
+    magenta: '#ff00ff',
+    lime: '#00ff00',
+    maroon: '#800000',
+    navy: '#000080',
+    olive: '#808000',
+    teal: '#008080',
+    silver: '#c0c0c0',
+    aqua: '#00ffff',
+    fuchsia: '#ff00ff',
+  };
+
+  const hexColor = colorMap[color.toLowerCase()];
+  return hexColor || '#888888';
+}
+
+function hexToRgbaWithOpacity(hex, opacity) {
+  if (opacity === 1.0) {
+    return hex;
+  }
+
+  const cleanHex = hex.slice(1);
+  const r = parseInt(cleanHex.slice(0, 2), 16);
+  const g = parseInt(cleanHex.slice(2, 4), 16);
+  const b = parseInt(cleanHex.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+function applyOpacityToColor(color, opacity) {
+  const hex = colorToHex(color);
+  const result = hexToRgbaWithOpacity(hex, opacity);
+  return result;
+}
+
 function updateDecorationType() {
   if (decorationType) {
     decorationType.dispose();
   }
 
-  const config = vscode.workspace.getConfiguration('inlineBlameMini');
-  const styleConfig = getStyleConfig(config);
+  decorationType = vscode.window.createTextEditorDecorationType({});
+}
 
-  decorationType = vscode.window.createTextEditorDecorationType({
-    after: styleConfig,
-  });
+function getCurrentStyleConfig() {
+  const config = vscode.workspace.getConfiguration('inlineBlameMini');
+  const result = getStyleConfig(config);
+  return result;
 }
 
 function getStyleConfig(config) {
   const preset = config.get('style.preset', 'custom');
 
+  let style;
   if (preset !== 'custom') {
-    return getPresetStyle(preset);
-  }
-
-  const style = {
-    margin: config.get('style.margin', '0 0 0 1rem'),
-  };
-
-  const colorValue = config.get('style.color', 'editorCodeLens.foreground');
-  if (
-    colorValue.startsWith('#') ||
-    colorValue.startsWith('rgb') ||
-    colorValue.startsWith('hsl')
-  ) {
-    style.color = colorValue;
+    style = { ...getPresetStyle(preset) };
   } else {
-    style.color = new vscode.ThemeColor(colorValue);
+    style = {};
   }
 
-  const fontStyle = config.get('style.fontStyle', 'italic');
-  if (fontStyle !== 'normal') {
-    style.fontStyle = fontStyle;
+  if (config.has('style.margin')) {
+    style.margin = config.get('style.margin', '0 0 0 1rem');
+  } else if (!style.margin) {
+    style.margin = '0 0 0 1rem';
   }
 
-  const fontWeight = config.get('style.fontWeight', 'normal');
-  if (fontWeight !== 'normal') {
-    style.fontWeight = fontWeight;
+  const colorValue = config.get('style.color', null);
+  const opacity = config.get('style.opacity', null);
+
+  if (colorValue !== null || opacity !== null) {
+    const finalColor =
+      colorValue ||
+      (style.color && typeof style.color === 'string'
+        ? style.color
+        : 'editorCodeLens.foreground');
+    const finalOpacity = opacity !== null ? opacity : 0.8;
+
+    if (finalColor.startsWith('editor') || finalColor.includes('.')) {
+      style.color = new vscode.ThemeColor(finalColor);
+    } else {
+      style.color = applyOpacityToColor(finalColor, finalOpacity);
+    }
+  } else if (!style.color) {
+    style.color = new vscode.ThemeColor('editorCodeLens.foreground');
   }
 
-  const fontSize = config.get('style.fontSize', '0.9em');
-  if (fontSize) {
-    style.fontSize = fontSize;
+  if (config.has('style.fontStyle')) {
+    const fontStyle = config.get('style.fontStyle', 'italic');
+    if (fontStyle !== 'normal') {
+      style.fontStyle = fontStyle;
+    } else {
+      delete style.fontStyle;
+    }
   }
 
-  const opacity = config.get('style.opacity', 0.8);
-  if (opacity !== 1.0) {
-    style.opacity = opacity.toString();
+  if (config.has('style.fontWeight')) {
+    const fontWeight = config.get('style.fontWeight', 'normal');
+    if (fontWeight !== 'normal') {
+      style.fontWeight = fontWeight;
+    } else {
+      delete style.fontWeight;
+    }
   }
 
-  const textDecoration = config.get('style.textDecoration', 'none');
-  if (textDecoration !== 'none') {
-    style.textDecoration = textDecoration;
+  if (config.has('style.fontSize')) {
+    const fontSize = config.get('style.fontSize', '0.9em');
+    if (fontSize) {
+      style.fontSize = fontSize;
+    } else {
+      delete style.fontSize;
+    }
+  }
+
+  if (config.has('style.textDecoration')) {
+    const textDecoration = config.get('style.textDecoration', 'none');
+    if (textDecoration !== 'none') {
+      style.textDecoration = textDecoration;
+    } else {
+      delete style.textDecoration;
+    }
   }
 
   return style;
@@ -77,7 +164,6 @@ function getPresetStyle(preset) {
       margin: '0 0 0 1rem',
       color: new vscode.ThemeColor('editorCodeLens.foreground'),
       fontStyle: 'italic',
-      opacity: '0.6',
       fontSize: '0.9em',
     },
     prominent: {
@@ -85,22 +171,19 @@ function getPresetStyle(preset) {
       color: new vscode.ThemeColor('editorInfo.foreground'),
       fontStyle: 'normal',
       fontWeight: 'bold',
-      opacity: '0.8',
     },
     minimal: {
       margin: '0 0 0 0.5rem',
       color: new vscode.ThemeColor('editorCodeLens.foreground'),
       fontStyle: 'normal',
       fontSize: '0.8em',
-      opacity: '0.5',
     },
     modern: {
       margin: '0 0 0 1rem',
-      color: '#888888',
+      color: 'rgba(136, 136, 136, 0.7)',
       fontStyle: 'italic',
       fontWeight: '300',
       textDecoration: 'none',
-      opacity: '0.7',
     },
   };
 
@@ -187,6 +270,16 @@ function activate(context) {
 
       const file = editor.document.fileName;
       const currentLine = editor.selection.active.line + 1;
+
+      const lineIndex = currentLine - 1;
+      const line = editor.document.lineAt(lineIndex);
+
+      if (line.text.trim() === '') {
+        vscode.window.showInformationMessage(
+          `Line ${currentLine}: Empty line - no git blame information available`
+        );
+        return;
+      }
 
       blameLine(file, currentLine, blameData => {
         if (!blameData) {
@@ -308,6 +401,16 @@ function refresh() {
   const file = editor.document.fileName;
   const currentLine = editor.selection.active.line + 1;
 
+  const lineIndex = currentLine - 1;
+  const line = editor.document.lineAt(lineIndex);
+
+  if (line.text.trim() === '') {
+    statusBar.text = '$(info) Empty line';
+    statusBar.tooltip = 'No git blame information for empty lines';
+    statusBar.show();
+    return;
+  }
+
   blameLine(file, currentLine, blameData => {
     if (!blameData) {
       const dirtyIndicator = isDirty ? ' $(save) Unsaved changes' : '';
@@ -326,11 +429,13 @@ function refresh() {
       const line = editor.document.lineAt(lineIndex);
       const endPosition = line.range.end;
 
+      const styleConfig = getCurrentStyleConfig();
       const decoration = {
         range: new vscode.Range(endPosition, endPosition),
         renderOptions: {
           after: {
             contentText: inlineText,
+            ...styleConfig,
           },
         },
       };
@@ -358,11 +463,13 @@ function refresh() {
     const line = editor.document.lineAt(lineIndex);
     const endPosition = line.range.end;
 
+    const styleConfig = getCurrentStyleConfig();
     const decoration = {
       range: new vscode.Range(endPosition, endPosition),
       renderOptions: {
         after: {
           contentText: inlineText,
+          ...styleConfig,
         },
       },
     };
@@ -375,7 +482,6 @@ function refresh() {
     statusBar.show();
   });
 }
-
 function blameLine(file, line, cb) {
   try {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(
