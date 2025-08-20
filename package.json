@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -34,197 +34,16 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "inlineBlame.toggle",
-        "title": "Inline Blame: Toggle",
-        "icon": "$(git-commit)"
-      },
-      {
-        "command": "inlineBlame.enable",
-        "title": "Inline Blame: Enable",
-        "icon": "$(eye)"
-      },
-      {
-        "command": "inlineBlame.disable",
-        "title": "Inline Blame: Disable",
-        "icon": "$(eye-closed)"
-      },
-      {
-        "command": "inlineBlame.showCurrentLine",
-        "title": "Inline Blame: Show Current Line",
-        "icon": "$(info)"
-      }
-    ],
-    "menus": {
-      "editor/context": [
-        {
-          "command": "inlineBlame.showCurrentLine",
-          "group": "1_modification",
-          "when": "editorTextFocus"
-        },
-        {
-          "command": "inlineBlame.toggle",
-          "group": "1_modification",
-          "when": "editorTextFocus"
-        }
-      ],
-      "commandPalette": [
-        {
-          "command": "inlineBlame.toggle",
-          "when": "editorTextFocus"
-        },
-        {
-          "command": "inlineBlame.enable",
-          "when": "editorTextFocus"
-        },
-        {
-          "command": "inlineBlame.disable",
-          "when": "editorTextFocus"
-        },
-        {
-          "command": "inlineBlame.showCurrentLine",
-          "when": "editorTextFocus"
-        }
-      ]
-    },
-    "configuration": {
-      "title": "Inline Blame Mini",
-      "properties": {
-        "inlineBlameMini.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable or disable inline git blame"
-        },
-        "inlineBlameMini.maxSummary": {
-          "type": "number",
-          "default": 150,
-          "minimum": 10,
-          "maximum": 200,
-          "description": "Maximum length of commit message summary"
-        },
-        "inlineBlameMini.debounceDelay": {
-          "type": "number",
-          "default": 150,
-          "minimum": 50,
-          "maximum": 1000,
-          "description": "Delay in milliseconds before updating blame information when cursor moves"
-        },
-        "inlineBlameMini.showCurrentUserAsYou": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show 'You' instead of your name for commits you authored"
-        },
-        "inlineBlameMini.style.color": {
-          "type": "string",
-          "default": "editorCodeLens.foreground",
-          "description": "Color of the inline blame text. Can be a VS Code theme color ID or CSS color value (e.g., '#888888', 'rgba(136,136,136,0.7)')"
-        },
-        "inlineBlameMini.style.fontStyle": {
-          "type": "string",
-          "enum": [
-            "normal",
-            "italic",
-            "oblique"
-          ],
-          "default": "italic",
-          "description": "Font style of the inline blame text"
-        },
-        "inlineBlameMini.style.fontWeight": {
-          "type": "string",
-          "enum": [
-            "normal",
-            "bold",
-            "lighter",
-            "bolder",
-            "100",
-            "200",
-            "300",
-            "400",
-            "500",
-            "600",
-            "700",
-            "800",
-            "900"
-          ],
-          "default": "normal",
-          "description": "Font weight of the inline blame text"
-        },
-        "inlineBlameMini.style.fontSize": {
-          "type": "string",
-          "default": "0.9em",
-          "description": "Font size of the inline blame text (e.g., '12px', '0.9em'). Empty string uses editor font size"
-        },
-        "inlineBlameMini.style.opacity": {
-          "type": "number",
-          "default": 0.8,
-          "minimum": 0.1,
-          "maximum": 1,
-          "description": "Opacity of the inline blame text (0.1 to 1.0)"
-        },
-        "inlineBlameMini.style.margin": {
-          "type": "string",
-          "default": "0 0 0 1rem",
-          "description": "CSS margin for the inline blame text (e.g., '0 0 0 1rem', '0 20px')"
-        },
-        "inlineBlameMini.style.textDecoration": {
-          "type": "string",
-          "enum": [
-            "none",
-            "underline",
-            "line-through",
-            "overline"
-          ],
-          "default": "none",
-          "description": "Text decoration for the inline blame text"
-        },
-        "inlineBlameMini.style.preset": {
-          "type": "string",
-          "enum": [
-            "custom",
-            "subtle",
-            "prominent",
-            "minimal",
-            "modern"
-          ],
-          "default": "modern",
-          "description": "Apply a predefined style preset. 'custom' uses individual style settings."
-        }
-      }
-    },
-    "keybindings": [
-      {
-        "command": "inlineBlame.toggle",
-        "key": "ctrl+alt+b",
-        "mac": "cmd+alt+b",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "inlineBlame.enable",
-        "key": "ctrl+alt+shift+b",
-        "mac": "cmd+alt+shift+b",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "inlineBlame.showCurrentLine",
-        "key": "ctrl+alt+i",
-        "mac": "cmd+alt+i",
-        "when": "editorTextFocus"
-      }
-    ]
-  },
+  "main": "./src/extension.js",
   "extensionDependencies": [
     "vscode.git"
   ],
   "scripts": {
     "lint": "bunx eslint .",
     "lint:fix": "bunx eslint . --fix",
-    "format": "bunx prettier --write .",
-    "format:check": "bunx prettier --check .",
+    "prettier": "bunx prettier --write .",
+    "format": "bun run lint:fix && bun run prettier",
     "package": "vsce package",
-    "dev": "bun run lint && bun run format",
     "build": "bun run package",
     "vscode:prepublish": "bun run lint && bun run format",
     "publish": "vsce publish"
