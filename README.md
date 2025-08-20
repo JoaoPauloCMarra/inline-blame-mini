@@ -2,7 +2,15 @@
 
 A minimal VS Code extension that shows git blame information inline for the current cursor line.
 
-![VS Code Demo](screenshots/vscode-demo.png)
+## Screenshots
+
+### Inline Blame Display
+
+![Inline Blame](screenshots/blame-line.png)
+
+### Status Bar Information
+
+![Status Bar](screenshots/statusbar.png)
 
 ## Features
 
@@ -15,12 +23,12 @@ A minimal VS Code extension that shows git blame information inline for the curr
 
 When you place your cursor on any line in a git-tracked file, the extension automatically shows:
 
-- Author name (or "You" for your commits)
-- Relative time (e.g., "2 hours ago", "3 days ago")
-- Pull Request title (if detected) or commit message
-- Status bar with additional details
+- **Inline blame text** (see first screenshot above): Author name (or "You" for your commits), relative time, and commit message
+- **Status bar information** (see second screenshot above): Simplified format with author and time
+- Pull Request title detection when available
+- Automatic updates when moving between lines
 
-Example: ` You, 2 hours ago • Fix inline blame performance issue`
+Example inline format: ` You, 2 hours ago • Fix inline blame performance issue`
 
 The extension works automatically - no commands or configuration needed!
 
@@ -45,14 +53,3 @@ The extension uses these default styles (configurable via constants in code):
 - Color: `rgba(136, 136, 136, 0.7)` (gray with opacity)
 - Font: Italic, 0.9em size
 - Margin: 1rem left padding
-
-To customize, edit the constants at the top of `src/extension.js`.
-
-## Development
-
-```bash
-bun install
-bun run format      # lint + format
-bun run package  # create VSIX
-code --install-extension inline-blame-mini-*.vsix
-```

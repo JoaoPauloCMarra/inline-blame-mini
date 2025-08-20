@@ -35,9 +35,6 @@
     "onStartupFinished"
   ],
   "main": "./src/extension.js",
-  "extensionDependencies": [
-    "vscode.git"
-  ],
   "scripts": {
     "lint": "bunx eslint .",
     "lint:fix": "bunx eslint . --fix",
@@ -48,6 +45,9 @@
     "vscode:prepublish": "bun run lint && bun run format",
     "publish": "vsce publish"
   },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "devDependencies": {
     "@types/vscode": "^1.103.0",
     "@vscode/vsce": "^3.0.0",
