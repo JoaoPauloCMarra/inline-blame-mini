@@ -52,7 +52,7 @@ function blameLine(file, line, callback) {
           callback({
             author: 'You',
             time: Date.now() / 1000,
-            summary: 'Not committed yet, just now',
+            summary: 'Not committed yet',
             hash: 'uncommitted',
             isUncommitted: true,
           });
