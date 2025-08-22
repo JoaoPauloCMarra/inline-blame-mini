@@ -2,8 +2,8 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.0.4",
-  "publisher": "JoaoPauloCMarra",
+  "version": "0.0.5",
+  "publisher": "JoaoPauMarra",
   "license": "MIT",
   "icon": "icon.png",
   "galleryBanner": {
@@ -35,6 +35,142 @@
     "onStartupFinished"
   ],
   "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "inline-blame-mini.showHelp",
+        "title": "Show Troubleshooting Guide",
+        "category": "Inline Blame Mini"
+      },
+      {
+        "command": "inline-blame-mini.toggle",
+        "title": "Toggle Inline Blame",
+        "category": "Inline Blame Mini"
+      },
+      {
+        "command": "inline-blame-mini.refresh",
+        "title": "Refresh Blame Information",
+        "category": "Inline Blame Mini"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Inline Blame Mini",
+      "properties": {
+        "inline-blame-mini.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable inline blame information display"
+        },
+        "inline-blame-mini.delay": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Delay in milliseconds before showing blame information when cursor moves"
+        },
+        "inline-blame-mini.format": {
+          "type": "string",
+          "default": "{author}, {timeAgo} • {summary}",
+          "description": "Format template for inline blame text. Available variables: {author}, {timeAgo}, {summary}, {hash}, {prNumber}"
+        },
+        "inline-blame-mini.summaryMaxLength": {
+          "type": "number",
+          "default": 60,
+          "minimum": 10,
+          "maximum": 200,
+          "description": "Maximum length of commit summary before truncation"
+        },
+        "inline-blame-mini.showOnlyWhenChanged": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only show blame when cursor moves to a different line"
+        },
+        "inline-blame-mini.ignoreEmptyLines": {
+          "type": "boolean",
+          "default": true,
+          "description": "Skip blame information for empty lines"
+        },
+        "inline-blame-mini.style.color": {
+          "type": "string",
+          "default": "rgba(136, 136, 136, 0.7)",
+          "description": "Color of the inline blame text (CSS color format)"
+        },
+        "inline-blame-mini.style.fontStyle": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic",
+            "oblique"
+          ],
+          "default": "italic",
+          "description": "Font style of the inline blame text"
+        },
+        "inline-blame-mini.style.fontSize": {
+          "type": "string",
+          "default": "0.9em",
+          "description": "Font size of the inline blame text (CSS font-size format)"
+        },
+        "inline-blame-mini.style.margin": {
+          "type": "string",
+          "default": "0 0 0 1rem",
+          "description": "Margin around the inline blame text (CSS margin format)"
+        },
+        "inline-blame-mini.style.position": {
+          "type": "string",
+          "enum": [
+            "end-of-line",
+            "above-line",
+            "below-line"
+          ],
+          "default": "end-of-line",
+          "description": "Position of the inline blame text relative to the code line"
+        },
+        "inline-blame-mini.git.timeout": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "maximum": 30000,
+          "description": "Timeout in milliseconds for git operations"
+        },
+        "inline-blame-mini.cache.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching of blame results for better performance"
+        },
+        "inline-blame-mini.cache.maxSize": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum number of cached blame results"
+        },
+        "inline-blame-mini.statusBar.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show extension status and file context in the status bar"
+        },
+        "inline-blame-mini.excludeFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Glob patterns for files to exclude from blame information"
+        },
+        "inline-blame-mini.includeFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*"
+          ],
+          "description": "Glob patterns for files to include for blame information"
+        }
+      }
+    }
+  },
   "scripts": {
     "lint": "bunx eslint .",
     "lint:fix": "bunx eslint . --fix",

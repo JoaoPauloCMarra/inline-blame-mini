@@ -1,3 +1,8 @@
+const path = require('path');
+const fs = require('fs');
+
+const gitRootCache = new Map();
+
 function relativeTime(timestamp) {
   const diff = Date.now() - timestamp;
   const seconds = Math.floor(diff / 1000);
@@ -14,7 +19,7 @@ function relativeTime(timestamp) {
 }
 
 function trimSummary(summary, maxLength) {
-  if (summary.length <= maxLength) return summary;
+  if (!summary || summary.length <= maxLength) return summary || '';
   return summary.substring(0, maxLength - 1) + '…';
 }
 
@@ -26,8 +31,83 @@ function debounce(func, delay) {
   };
 }
 
+function isGitRepository(folderPath) {
+  try {
+    const gitPath = path.join(folderPath, '.git');
+    const stat = fs.statSync(gitPath);
+    return stat.isDirectory() || stat.isFile();
+  } catch (error) {
+    return false;
+  }
+}
+
+function findGitRoot(filePath) {
+  const cached = gitRootCache.get(filePath);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  try {
+    let currentDir = path.dirname(filePath);
+    const root = path.parse(currentDir).root;
+    let result = null;
+
+    while (currentDir !== root) {
+      if (isGitRepository(currentDir)) {
+        result = currentDir;
+        break;
+      }
+      currentDir = path.dirname(currentDir);
+    }
+
+    gitRootCache.set(filePath, result);
+
+    if (gitRootCache.size > 50) {
+      const firstKey = gitRootCache.keys().next().value;
+      gitRootCache.delete(firstKey);
+    }
+
+    return result;
+  } catch (error) {
+    gitRootCache.set(filePath, null);
+    return null;
+  }
+}
+
+function getFileRelativeToGit(filePath) {
+  const gitRoot = findGitRoot(filePath);
+  if (!gitRoot) return null;
+
+  try {
+    return path.relative(gitRoot, filePath);
+  } catch (error) {
+    return null;
+  }
+}
+
+function validateLinePosition(editor, line) {
+  if (!editor || !editor.document) {
+    return { valid: false, error: 'No active editor' };
+  }
+
+  const lineIndex = line - 1;
+  if (lineIndex < 0) {
+    return { valid: false, error: 'Line number cannot be negative' };
+  }
+
+  if (lineIndex >= editor.document.lineCount) {
+    return { valid: false, error: 'Line number exceeds document length' };
+  }
+
+  return { valid: true };
+}
+
 module.exports = {
   relativeTime,
   trimSummary,
   debounce,
+  isGitRepository,
+  findGitRoot,
+  getFileRelativeToGit,
+  validateLinePosition,
 };

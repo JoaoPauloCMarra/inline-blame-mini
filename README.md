@@ -37,14 +37,71 @@ The extension works automatically - no commands or configuration needed!
 - Git must be installed and available in your PATH
 - File must be saved and part of a git repository
 
+## Error Handling & Troubleshooting
+
+The extension provides comprehensive error handling with helpful feedback:
+
+### Status Bar Messages
+
+- **Git not available**: Git is not installed or not in PATH
+- **Not a git repository**: File is not in a git repository
+- **File not tracked**: File exists but is not tracked by git
+- **Operation timed out**: Git operation took too long (large repos)
+- **Unsaved changes**: File has modifications affecting blame accuracy
+
+### Interactive Help
+
+When errors occur, you can:
+
+- Click on error/warning status bar items to get help
+- Use **Command Palette** → `Inline Blame Mini: Show Troubleshooting Guide`
+- Get step-by-step solutions for common issues
+
+### Common Solutions
+
+- **Git not found**: Install Git from [git-scm.com](https://git-scm.com/downloads)
+- **Not a git repo**: Run `git init` in your project folder
+- **File not tracked**: Run `git add filename.ext` to track the file
+- **Timeout issues**: Check repository size and network connection
+
 ## Performance
 
-This extension is designed to be fast and efficient:
+This extension is designed to be extremely fast and efficient:
 
-- Only queries git blame for the current line (not entire files)
-- Uses debouncing to prevent excessive git calls
-- Caches user information per workspace
-- Only updates when moving to different lines
+### Intelligent Caching
+
+- **Blame Cache**: Results cached per file/line/document version
+- **Repository Cache**: Git repository detection cached per file
+- **Commit Cache**: Git commit messages cached to avoid repeated lookups
+- **PR Cache**: Pull request information cached for faster detection
+- **User Cache**: Git user information cached per workspace
+
+### Smart Processing
+
+- **Duplicate Detection**: Avoids processing same file/line combinations
+- **Change Detection**: Only refreshes when cursor moves to different lines
+- **Selective Updates**: Document changes only trigger refresh if they affect current line
+- **Debounced Operations**: Prevents excessive git calls during rapid changes
+
+### Optimized Git Operations
+
+- **Single Line Blame**: Only queries git blame for current line (not entire files)
+- **Timeout Protection**: All git operations have timeouts to prevent hanging
+- **Process Management**: Proper cleanup of git processes
+- **Minimal Parsing**: Efficient parsing of git blame output
+
+### Memory Management
+
+- **Cache Limits**: Automatic cleanup when caches exceed size limits
+- **Workspace Cleanup**: Caches cleared on workspace/configuration changes
+- **Resource Disposal**: Proper cleanup of event listeners and decorations
+
+### Timing Optimizations
+
+- **Fast Debouncing**: 100ms for cursor movement (down from 150ms)
+- **Quick Saves**: 50ms debounce for file saves (down from 200ms)
+- **Smart Document Changes**: 300ms debounce only for relevant changes
+- **Reduced Timeouts**: Faster git operation timeouts for responsiveness
 
 ## Styling
 
