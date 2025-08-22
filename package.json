@@ -3,7 +3,7 @@
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
   "version": "0.0.5",
-  "publisher": "JoaoPauMarra",
+  "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
   "galleryBanner": {
