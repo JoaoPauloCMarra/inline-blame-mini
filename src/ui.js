@@ -72,26 +72,6 @@ function addDecoration(editor, currentLine, inlineText) {
 
 function setGitAvailability(available) {
   gitAvailable = available;
-  if (!available) {
-    showErrorMessage(
-      'Git not found in PATH',
-      'Inline Blame Mini requires Git to be installed and available in your system PATH. Please install Git and restart VS Code.',
-      ['Install Git', 'Learn More'],
-      selection => {
-        if (selection === 'Install Git') {
-          vscode.env.openExternal(
-            vscode.Uri.parse('https://git-scm.com/downloads')
-          );
-        } else if (selection === 'Learn More') {
-          vscode.env.openExternal(
-            vscode.Uri.parse(
-              'https://github.com/JoaoPauloCMarra/inline-blame-mini#troubleshooting'
-            )
-          );
-        }
-      }
-    );
-  }
 }
 
 function setStatusBar(text, tooltip, state = 'INFO') {

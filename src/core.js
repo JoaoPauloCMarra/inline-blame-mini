@@ -11,7 +11,6 @@ const {
   addDecoration,
   clearDecorations,
   getGitAvailability,
-  showWarningMessage,
 } = require('./ui');
 const config = require('./config');
 
@@ -34,29 +33,20 @@ function refresh() {
   clearDecorations(editor);
 
   if (!getGitAvailability()) {
-    setStatusBar(
-      'Git not available',
-      'Git command not found in PATH. Please install Git and restart VS Code.',
-      'ERROR'
-    );
+    const { setFileStatusBar } = require('./ui');
+    setFileStatusBar('', '');
     return;
   }
 
   if (!config.isEnabled()) {
-    setStatusBar(
-      'Inline Blame: Disabled',
-      'Inline blame is disabled. Use the command palette to enable it.',
-      'DISABLED'
-    );
+    const { setFileStatusBar } = require('./ui');
+    setFileStatusBar('', '');
     return;
   }
 
   if (editor.document.isUntitled) {
-    setStatusBar(
-      'Untitled file',
-      'Save the file first to see git blame information. Git blame only works with saved files.',
-      'NEW_FILE'
-    );
+    const { setFileStatusBar } = require('./ui');
+    setFileStatusBar('', '');
     return;
   }
 
@@ -194,37 +184,16 @@ function handleBlameError(error, editor) {
   const dirtyWarning = isDirty ? '\n\nNote: File has unsaved changes' : '';
 
   switch (error.type) {
-    case 'NOT_GIT_REPO':
-      setStatusBar(
-        'Not a git repository',
-        `This file is not in a git repository. Initialize git in the workspace folder to see blame information.${dirtyWarning}`,
-        'WARNING'
-      );
-      break;
-    case 'FILE_NOT_TRACKED':
-      setStatusBar(
-        'File not tracked by git',
-        `This file is not tracked by git. Add it to git to see blame information.${dirtyWarning}`,
-        'WARNING'
-      );
-      showWarningMessage(
-        'File not tracked by git',
-        'This file needs to be added to git before blame information can be displayed.',
-        ['Add to Git', 'Learn More'],
-        selection => {
-          if (selection === 'Add to Git') {
-            vscode.commands.executeCommand(
-              'git.stage',
-              vscode.Uri.file(editor.document.fileName)
-            );
-          } else if (selection === 'Learn More') {
-            vscode.env.openExternal(
-              vscode.Uri.parse('https://git-scm.com/docs/git-add')
-            );
-          }
-        }
-      );
-      break;
+    case 'NOT_GIT_REPO': {
+      const { setFileStatusBar } = require('./ui');
+      setFileStatusBar('', '');
+      return;
+    }
+    case 'FILE_NOT_TRACKED': {
+      const { setFileStatusBar } = require('./ui');
+      setFileStatusBar('', '');
+      return;
+    }
     case 'TIMEOUT':
       setStatusBar(
         'Git operation timed out',
@@ -249,35 +218,9 @@ function handleBlameError(error, editor) {
   }
 }
 
-function handleNoBlameData(editor) {
-  const isDirty = editor.document.isDirty;
-  const dirtyIndicator = isDirty ? ' Unsaved changes' : '';
-  const dirtyTooltip = isDirty
-    ? '\n\nFile has unsaved changes which may affect git blame results'
-    : '';
-
-  setStatusBar(
-    `No git blame${dirtyIndicator}`,
-    `No blame data available for this line. This may occur with:
-• New files not yet committed
-• Binary files
-• Very recent changes
-• Git repository issues${dirtyTooltip}`,
-    'WARNING'
-  );
-
-  if (isDirty) {
-    showWarningMessage(
-      'Unsaved changes detected',
-      'The file has unsaved changes which may affect git blame results. Save the file to see accurate blame information.',
-      ['Save File', 'Continue Anyway'],
-      selection => {
-        if (selection === 'Save File') {
-          vscode.commands.executeCommand('workbench.action.files.save');
-        }
-      }
-    );
-  }
+function handleNoBlameData(_editor) {
+  const { setFileStatusBar } = require('./ui');
+  setFileStatusBar('', '');
 }
 
 function displayBlameInfo(editor, currentLine, blameData) {
