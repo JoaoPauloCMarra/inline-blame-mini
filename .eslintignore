@@ -1,5 +1,0 @@
-node_modules/
-*.vsix
-.vscode/
-bun.lock
-package-lock.json
