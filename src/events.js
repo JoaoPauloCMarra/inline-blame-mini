@@ -1,7 +1,7 @@
 const vscode = require('vscode');
 const { debounce } = require('./utils');
 const { refresh, clearCaches } = require('./core');
-const { clearDecorations, setDisposables } = require('./ui');
+const { clearDecorations, setDisposables, setFileStatusBar } = require('./ui');
 
 const DEBOUNCE_DELAY = 100;
 const SAVE_DEBOUNCE_DELAY = 50;
@@ -16,7 +16,6 @@ function hookEvents() {
     if (editor) {
       refresh();
     } else {
-      const { setFileStatusBar } = require('./ui');
       setFileStatusBar('', '');
     }
   });

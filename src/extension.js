@@ -7,7 +7,7 @@ const {
   cleanup,
 } = require('./ui');
 const { hookEvents } = require('./events');
-const { refresh } = require('./core');
+const { refresh, toggleEnabled } = require('./core');
 
 function activate(context) {
   checkGitAvailability(available => {
@@ -28,7 +28,6 @@ function activate(context) {
   const toggleCommand = vscode.commands.registerCommand(
     'inline-blame-mini.toggle',
     () => {
-      const { toggleEnabled } = require('./core');
       const newState = toggleEnabled();
       const message = newState
         ? 'Inline Blame enabled'

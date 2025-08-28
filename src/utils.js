@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 
 const gitRootCache = new Map();
+const DEFAULT_GIT_ROOT_CACHE_SIZE = 50;
 
 function relativeTime(timestamp) {
   const diff = Date.now() - timestamp;
@@ -62,7 +63,7 @@ function findGitRoot(filePath) {
 
     gitRootCache.set(filePath, result);
 
-    if (gitRootCache.size > 50) {
+    if (gitRootCache.size > DEFAULT_GIT_ROOT_CACHE_SIZE) {
       const firstKey = gitRootCache.keys().next().value;
       gitRootCache.delete(firstKey);
     }

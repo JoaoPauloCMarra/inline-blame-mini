@@ -26,14 +26,6 @@ function createDecorationType() {
   return decorationType;
 }
 
-function updateDecorationType() {
-  if (decorationType) {
-    decorationType.dispose();
-  }
-  decorationType = vscode.window.createTextEditorDecorationType({});
-  return decorationType;
-}
-
 function createStatusBar() {
   statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -124,60 +116,40 @@ function setProcessingState(isProcessingNow) {
   }
 }
 
-function showErrorMessage(title, message, actions = [], callback = null) {
+function showMessage(type, title, message, actions = [], callback = null) {
   const options = { modal: false, detail: message };
+  const method =
+    type === 'error'
+      ? 'showErrorMessage'
+      : type === 'warning'
+        ? 'showWarningMessage'
+        : 'showInformationMessage';
 
   if (actions.length > 0) {
-    vscode.window
-      .showErrorMessage(title, options, ...actions)
-      .then(selection => {
-        if (callback) callback(selection);
-      });
+    vscode.window[method](title, options, ...actions).then(selection => {
+      if (callback) callback(selection);
+    });
   } else {
-    vscode.window.showErrorMessage(title, options);
+    vscode.window[method](title, options);
   }
+}
+
+function showErrorMessage(title, message, actions = [], callback = null) {
+  showMessage('error', title, message, actions, callback);
 }
 
 function showWarningMessage(title, message, actions = [], callback = null) {
-  const options = { modal: false, detail: message };
-
-  if (actions.length > 0) {
-    vscode.window
-      .showWarningMessage(title, options, ...actions)
-      .then(selection => {
-        if (callback) callback(selection);
-      });
-  } else {
-    vscode.window.showWarningMessage(title, options);
-  }
+  showMessage('warning', title, message, actions, callback);
 }
 
 function showInfoMessage(title, message, actions = [], callback = null) {
-  const options = { modal: false, detail: message };
-
-  if (actions.length > 0) {
-    vscode.window
-      .showInformationMessage(title, options, ...actions)
-      .then(selection => {
-        if (callback) callback(selection);
-      });
-  } else {
-    vscode.window.showInformationMessage(title, options);
-  }
+  showMessage('info', title, message, actions, callback);
 }
 
 function clearDecorations(editor) {
   if (editor && decorationType) {
     editor.setDecorations(decorationType, []);
   }
-}
-
-function getDisposables() {
-  return disposables;
-}
-
-function setDisposables(newDisposables) {
-  disposables = newDisposables;
 }
 
 function getGitAvailability() {
@@ -212,7 +184,6 @@ function cleanup() {
 
 module.exports = {
   createDecorationType,
-  updateDecorationType,
   createStatusBar,
   addDecoration,
   setGitAvailability,
@@ -220,8 +191,6 @@ module.exports = {
   setFileStatusBar,
   setProcessingState,
   clearDecorations,
-  getDisposables,
-  setDisposables,
   getGitAvailability,
   showErrorMessage,
   showWarningMessage,

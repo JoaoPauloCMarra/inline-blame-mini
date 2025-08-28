@@ -11,42 +11,44 @@ const {
   addDecoration,
   clearDecorations,
   getGitAvailability,
+  setFileStatusBar,
 } = require('./ui');
 const config = require('./config');
 
 const blameCache = new Map();
 const repoCache = new Map();
+const DEFAULT_CACHE_SIZE = 100;
 let lastProcessedFile = null;
 let lastProcessedLine = null;
 let lastEditor = null;
 let lastStatusBarFile = null;
 
+function clearStatusBar() {
+  setFileStatusBar('', '');
+}
+
 function refresh() {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     lastStatusBarFile = null;
-    const { setFileStatusBar } = require('./ui');
-    setFileStatusBar('', '');
+    clearStatusBar();
     return;
   }
 
   clearDecorations(editor);
 
   if (!getGitAvailability()) {
-    const { setFileStatusBar } = require('./ui');
-    setFileStatusBar('', '');
+    clearStatusBar();
     return;
   }
 
   if (!config.isEnabled()) {
-    const { setFileStatusBar } = require('./ui');
-    setFileStatusBar('', '');
+    clearStatusBar();
     return;
   }
 
   if (editor.document.isUntitled) {
-    const { setFileStatusBar } = require('./ui');
-    setFileStatusBar('', '');
+    clearStatusBar();
     return;
   }
 
@@ -59,8 +61,7 @@ function refresh() {
   }
 
   if (!config.shouldProcessFile(file)) {
-    const { setFileStatusBar } = require('./ui');
-    setFileStatusBar('', '');
+    clearStatusBar();
     return;
   }
 
@@ -127,7 +128,7 @@ function refresh() {
   blameLine(file, currentLine, (blameData, error) => {
     blameCache.set(cacheKey, { data: blameData, error });
 
-    if (blameCache.size > 100) {
+    if (blameCache.size > DEFAULT_CACHE_SIZE) {
       const firstKey = blameCache.keys().next().value;
       blameCache.delete(firstKey);
     }
@@ -155,8 +156,7 @@ function refresh() {
 function updateFileStatusBar(file) {
   const statusBarConfig = config.getStatusBarConfig();
   if (!statusBarConfig.enabled) {
-    const { setFileStatusBar } = require('./ui');
-    setFileStatusBar('', '');
+    clearStatusBar();
     return;
   }
 
@@ -167,14 +167,12 @@ function updateFileStatusBar(file) {
     }
 
     if (error || !fileData) {
-      const { setFileStatusBar } = require('./ui');
-      setFileStatusBar('', '');
+      clearStatusBar();
       return;
     }
 
     const rel = relativeTime(fileData.time * 1000);
     const statusText = `${fileData.author} (${rel})`;
-    const { setFileStatusBar } = require('./ui');
     setFileStatusBar(statusText, `Last modified by ${fileData.author}`);
   });
 }
@@ -185,13 +183,11 @@ function handleBlameError(error, editor) {
 
   switch (error.type) {
     case 'NOT_GIT_REPO': {
-      const { setFileStatusBar } = require('./ui');
-      setFileStatusBar('', '');
+      clearStatusBar();
       return;
     }
     case 'FILE_NOT_TRACKED': {
-      const { setFileStatusBar } = require('./ui');
-      setFileStatusBar('', '');
+      clearStatusBar();
       return;
     }
     case 'TIMEOUT':
@@ -219,8 +215,7 @@ function handleBlameError(error, editor) {
 }
 
 function handleNoBlameData(_editor) {
-  const { setFileStatusBar } = require('./ui');
-  setFileStatusBar('', '');
+  clearStatusBar();
 }
 
 function displayBlameInfo(editor, currentLine, blameData) {

@@ -8,6 +8,17 @@ const prCache = new Map();
 const fileCache = new Map();
 const CACHE_CLEANUP_THRESHOLD = 200;
 
+const GIT_SHORT_TIMEOUT = 3000;
+const GIT_MEDIUM_TIMEOUT = 5000;
+const UNCOMMITTED_HASH_PREFIX = '00000000';
+
+function cleanupCache(cache) {
+  if (cache.size > CACHE_CLEANUP_THRESHOLD) {
+    const firstKey = cache.keys().next().value;
+    cache.delete(firstKey);
+  }
+}
+
 function blameLine(file, line, callback) {
   try {
     const gitConfig = config.getGitConfig();
@@ -178,7 +189,7 @@ function parseBlameOutput(stdout, cwd, callback) {
       return;
     }
 
-    if (hash.startsWith('00000000')) {
+    if (hash.startsWith(UNCOMMITTED_HASH_PREFIX)) {
       callback(
         {
           author: 'You',
@@ -270,16 +281,13 @@ function getFullCommitMessage(cwd, hash, callback) {
   }
 
   const args = ['log', '--format=%s', '-n', '1', hash];
-  const opts = { cwd, timeout: 5000 };
+  const opts = { cwd, timeout: GIT_MEDIUM_TIMEOUT };
 
   execFile('git', args, opts, (err, stdout) => {
     const result = err ? null : stdout ? stdout.trim() : null;
     commitCache.set(cacheKey, result);
 
-    if (commitCache.size > CACHE_CLEANUP_THRESHOLD) {
-      const firstKey = commitCache.keys().next().value;
-      commitCache.delete(firstKey);
-    }
+    cleanupCache(commitCache);
 
     callback(result);
   });
@@ -295,7 +303,7 @@ function getCurrentGitUser(cwd, callback) {
     execFile(
       'git',
       ['config', 'user.name'],
-      { cwd, timeout: 3000 },
+      { cwd, timeout: GIT_SHORT_TIMEOUT },
       (err, stdout) => {
         resolve(err ? null : stdout.trim());
       }
@@ -306,7 +314,7 @@ function getCurrentGitUser(cwd, callback) {
     execFile(
       'git',
       ['config', 'user.email'],
-      { cwd, timeout: 3000 },
+      { cwd, timeout: GIT_SHORT_TIMEOUT },
       (err, stdout) => {
         resolve(err ? null : stdout.trim());
       }
@@ -334,7 +342,7 @@ function getPRInfo(cwd, hash, callback) {
   }
 
   const args = ['log', '--format=%s', '-n', '1', hash];
-  const opts = { cwd, timeout: 5000 };
+  const opts = { cwd, timeout: GIT_MEDIUM_TIMEOUT };
 
   execFile('git', args, opts, (err, stdout) => {
     if (err || !stdout) {
@@ -377,17 +385,14 @@ function getPRInfo(cwd, hash, callback) {
 
     prCache.set(cacheKey, result);
 
-    if (prCache.size > CACHE_CLEANUP_THRESHOLD) {
-      const firstKey = prCache.keys().next().value;
-      prCache.delete(firstKey);
-    }
+    cleanupCache(prCache);
 
     callback(result);
   });
 }
 
 function checkGitAvailability(callback) {
-  execFile('git', ['--version'], { timeout: 3000 }, err => {
+  execFile('git', ['--version'], { timeout: GIT_SHORT_TIMEOUT }, err => {
     callback(!err);
   });
 }
@@ -460,10 +465,7 @@ function getFileLastCommit(file, callback) {
 
           fileCache.set(cacheKey, { data: result, error: null });
 
-          if (fileCache.size > CACHE_CLEANUP_THRESHOLD) {
-            const firstKey = fileCache.keys().next().value;
-            fileCache.delete(firstKey);
-          }
+          cleanupCache(fileCache);
 
           callback(result, null);
         });
