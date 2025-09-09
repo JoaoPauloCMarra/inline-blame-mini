@@ -4,8 +4,14 @@ const {
   trimSummary,
   validateLinePosition,
   findGitRoot,
+  LRUCache,
+  setGitRootCacheLimit,
 } = require('./utils');
-const { blameLine, getFileLastCommit } = require('./git');
+const {
+  blameLine,
+  getFileLastCommit,
+  updateCacheSettings: updateGitCaches,
+} = require('./git');
 const {
   setStatusBar,
   addDecoration,
@@ -14,10 +20,14 @@ const {
   setFileStatusBar,
 } = require('./ui');
 const config = require('./config');
+const {
+  CACHE_ENABLED,
+  CACHE_MAX_SIZE,
+  IGNORE_EMPTY_LINES,
+} = require('./constants');
 
-const blameCache = new Map();
-const repoCache = new Map();
-const DEFAULT_CACHE_SIZE = 100;
+const blameCache = new LRUCache(CACHE_MAX_SIZE);
+const repoCache = new LRUCache(CACHE_MAX_SIZE);
 let lastProcessedFile = null;
 let lastProcessedLine = null;
 let lastEditor = null;
@@ -86,14 +96,14 @@ function refresh() {
   const lineIndex = currentLine - 1;
   const line = editor.document.lineAt(lineIndex);
 
-  if (config.shouldIgnoreEmptyLines() && line.text.trim() === '') {
+  if (IGNORE_EMPTY_LINES && line.text.trim() === '') {
     return;
   }
 
   let gitRoot = repoCache.get(file);
   if (gitRoot === undefined) {
     gitRoot = findGitRoot(file);
-    repoCache.set(file, gitRoot);
+    if (CACHE_ENABLED) repoCache.set(file, gitRoot);
   }
 
   if (!gitRoot) {
@@ -108,7 +118,7 @@ function refresh() {
   }
 
   const cacheKey = `${file}:${currentLine}:${editor.document.version}`;
-  const cachedBlame = blameCache.get(cacheKey);
+  const cachedBlame = CACHE_ENABLED ? blameCache.get(cacheKey) : undefined;
   if (cachedBlame) {
     if (cachedBlame.error) {
       handleBlameError(cachedBlame.error, editor);
@@ -126,11 +136,8 @@ function refresh() {
   }
 
   blameLine(file, currentLine, (blameData, error) => {
-    blameCache.set(cacheKey, { data: blameData, error });
-
-    if (blameCache.size > DEFAULT_CACHE_SIZE) {
-      const firstKey = blameCache.keys().next().value;
-      blameCache.delete(firstKey);
+    if (CACHE_ENABLED) {
+      blameCache.set(cacheKey, { data: blameData, error });
     }
 
     if (error) {
@@ -245,10 +252,12 @@ function clearCaches() {
 }
 
 function updateCacheSettings() {
-  const cacheConfig = config.getCacheConfig();
-  if (!cacheConfig.enabled) {
-    clearCaches();
-  }
+  const limit = CACHE_MAX_SIZE;
+  blameCache.setLimit(limit);
+  repoCache.setLimit(limit);
+  setGitRootCacheLimit(limit);
+  updateGitCaches();
+  if (!CACHE_ENABLED) clearCaches();
 }
 
 function toggleEnabled() {

@@ -1,17 +1,24 @@
 const vscode = require('vscode');
+const { CONFIG_SECTION } = require('./constants');
 
-const CONFIG_SECTION = 'inline-blame-mini';
+function toPosix(p) {
+  return (p || '').replace(/\\/g, '/');
+}
 
 function simpleGlobMatch(pattern, str) {
-  if (pattern === '**/*' || pattern === '*') return true;
-  if (!pattern.includes('*')) return str.includes(pattern);
+  const pat = toPosix(pattern || '').replace(/^\.\//, '');
+  const s = toPosix(str || '');
 
-  const regex = pattern
+  if (pat === '**/*' || pat === '*') return true;
+  if (!pat.includes('*') && !pat.includes('?')) return s.includes(pat);
+
+  const regex = pat
+    .replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
     .replace(/\*\*/g, '.*')
     .replace(/\*/g, '[^/]*')
     .replace(/\?/g, '.');
 
-  return new RegExp(`^${regex}$`).test(str);
+  return new RegExp(`^${regex}$`).test(s);
 }
 
 function getConfig() {
@@ -52,10 +59,6 @@ function shouldShowOnlyWhenChanged() {
   return get('showOnlyWhenChanged', true);
 }
 
-function shouldIgnoreEmptyLines() {
-  return get('ignoreEmptyLines', true);
-}
-
 function getStyleConfig() {
   return {
     color: get('style.color', 'rgba(136, 136, 136, 0.7)'),
@@ -63,19 +66,6 @@ function getStyleConfig() {
     fontSize: get('style.fontSize', '0.9em'),
     margin: get('style.margin', '0 0 0 1rem'),
     position: get('style.position', 'end-of-line'),
-  };
-}
-
-function getGitConfig() {
-  return {
-    timeout: Math.max(1000, Math.min(30000, get('git.timeout', 10000))),
-  };
-}
-
-function getCacheConfig() {
-  return {
-    enabled: get('cache.enabled', true),
-    maxSize: Math.max(10, Math.min(1000, get('cache.maxSize', 100))),
   };
 }
 
@@ -135,10 +125,7 @@ module.exports = {
   getFormat,
   getSummaryMaxLength,
   shouldShowOnlyWhenChanged,
-  shouldIgnoreEmptyLines,
   getStyleConfig,
-  getGitConfig,
-  getCacheConfig,
   getStatusBarConfig,
   getFileFilters,
   shouldProcessFile,

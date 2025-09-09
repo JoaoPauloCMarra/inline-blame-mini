@@ -1,8 +1,62 @@
 const path = require('path');
 const fs = require('fs');
+const { DEFAULT_GIT_ROOT_CACHE_SIZE } = require('./constants');
 
-const gitRootCache = new Map();
-const DEFAULT_GIT_ROOT_CACHE_SIZE = 50;
+class LRUCache {
+  constructor(limit = 100) {
+    this.limit = Math.max(1, limit);
+    this.map = new Map();
+  }
+
+  get size() {
+    return this.map.size;
+  }
+
+  get(key) {
+    if (!this.map.has(key)) return undefined;
+    const value = this.map.get(key);
+    this.map.delete(key);
+    this.map.set(key, value);
+    return value;
+  }
+
+  set(key, value) {
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, value);
+    this.#evict();
+    return this;
+  }
+
+  has(key) {
+    return this.map.has(key);
+  }
+
+  delete(key) {
+    return this.map.delete(key);
+  }
+
+  clear() {
+    this.map.clear();
+  }
+
+  keys() {
+    return this.map.keys();
+  }
+
+  setLimit(newLimit) {
+    this.limit = Math.max(1, newLimit);
+    this.#evict();
+  }
+
+  #evict() {
+    while (this.map.size > this.limit) {
+      const firstKey = this.map.keys().next().value;
+      this.map.delete(firstKey);
+    }
+  }
+}
+
+const gitRootCache = new LRUCache(DEFAULT_GIT_ROOT_CACHE_SIZE);
 
 function relativeTime(timestamp) {
   const diff = Date.now() - timestamp;
@@ -63,11 +117,6 @@ function findGitRoot(filePath) {
 
     gitRootCache.set(filePath, result);
 
-    if (gitRootCache.size > DEFAULT_GIT_ROOT_CACHE_SIZE) {
-      const firstKey = gitRootCache.keys().next().value;
-      gitRootCache.delete(firstKey);
-    }
-
     return result;
   } catch (error) {
     gitRootCache.set(filePath, null);
@@ -111,4 +160,6 @@ module.exports = {
   findGitRoot,
   getFileRelativeToGit,
   validateLinePosition,
+  LRUCache,
+  setGitRootCacheLimit: limit => gitRootCache.setLimit(limit),
 };

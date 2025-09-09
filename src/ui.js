@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const config = require('./config');
+const { STATUS_STATES } = require('./constants');
 
 let decorationType;
 let statusBar;
@@ -7,15 +8,13 @@ let disposables = [];
 let gitAvailable = true;
 let isProcessing = false;
 
-const STATUS_STATES = {
-  DISABLED: { icon: '$(eye-closed)', priority: 1 },
-  ERROR: { icon: '$(error)', priority: 2 },
-  WARNING: { icon: '$(warning)', priority: 3 },
-  PROCESSING: { icon: '$(sync~spin)', priority: 4 },
-  INFO: { icon: '$(info)', priority: 5 },
-  SUCCESS: { icon: '$(check)', priority: 6 },
-  EDIT: { icon: '$(edit)', priority: 7 },
-  NEW_FILE: { icon: '$(new-file)', priority: 8 },
+let codeLensEmitter = null;
+let codeLensRegistration = null;
+let currentLensState = {
+  uri: null,
+  line: -1,
+  text: '',
+  position: 'end-of-line',
 };
 
 function createDecorationType() {
@@ -35,6 +34,47 @@ function createStatusBar() {
   return statusBar;
 }
 
+function ensureCodeLensProvider() {
+  if (codeLensRegistration) return codeLensRegistration;
+
+  codeLensEmitter = new vscode.EventEmitter();
+
+  const provider = {
+    onDidChangeCodeLenses: codeLensEmitter.event,
+    provideCodeLenses(document) {
+      if (
+        !currentLensState.uri ||
+        document.uri.toString() !== currentLensState.uri ||
+        !currentLensState.text ||
+        currentLensState.position === 'end-of-line'
+      ) {
+        return [];
+      }
+      const lineIndex = Math.max(
+        0,
+        currentLensState.position === 'below-line'
+          ? currentLensState.line
+          : currentLensState.line - 1
+      );
+      const range = new vscode.Range(lineIndex, 0, lineIndex, 0);
+      return [
+        new vscode.CodeLens(range, {
+          title: currentLensState.text.trim(),
+          command: '',
+          tooltip: 'Inline Blame',
+        }),
+      ];
+    },
+  };
+
+  codeLensRegistration = vscode.languages.registerCodeLensProvider(
+    { scheme: 'file' },
+    provider
+  );
+
+  return codeLensRegistration;
+}
+
 function addDecoration(editor, currentLine, inlineText) {
   const lineIndex = currentLine - 1;
 
@@ -42,24 +82,35 @@ function addDecoration(editor, currentLine, inlineText) {
     return;
   }
 
-  const line = editor.document.lineAt(lineIndex);
-  const endPosition = new vscode.Position(lineIndex, line.text.length);
-
   const styleConfig = config.getStyleConfig();
-  const decoration = {
-    range: new vscode.Range(endPosition, endPosition),
-    renderOptions: {
-      after: {
-        contentText: inlineText,
-        color: styleConfig.color,
-        margin: styleConfig.margin,
-        fontStyle: styleConfig.fontStyle,
-        fontSize: styleConfig.fontSize,
+  if (styleConfig.position === 'end-of-line') {
+    const line = editor.document.lineAt(lineIndex);
+    const endPosition = new vscode.Position(lineIndex, line.text.length);
+    const decoration = {
+      range: new vscode.Range(endPosition, endPosition),
+      renderOptions: {
+        after: {
+          contentText: inlineText,
+          color: styleConfig.color,
+          margin: styleConfig.margin,
+          fontStyle: styleConfig.fontStyle,
+          fontSize: styleConfig.fontSize,
+        },
       },
-    },
-  };
-
-  editor.setDecorations(decorationType, [decoration]);
+    };
+    editor.setDecorations(decorationType, [decoration]);
+    clearCodeLens();
+  } else {
+    ensureCodeLensProvider();
+    currentLensState = {
+      uri: editor.document.uri.toString(),
+      line: lineIndex + 1,
+      text: inlineText,
+      position: styleConfig.position,
+    };
+    codeLensEmitter && codeLensEmitter.fire();
+    editor.setDecorations(decorationType, []);
+  }
 }
 
 function setGitAvailability(available) {
@@ -150,6 +201,11 @@ function clearDecorations(editor) {
   if (editor && decorationType) {
     editor.setDecorations(decorationType, []);
   }
+  clearCodeLens();
+}
+
+function setDisposables(newDisposables) {
+  disposables = newDisposables;
 }
 
 function getGitAvailability() {
@@ -180,6 +236,18 @@ function cleanup() {
     decorationType.dispose();
     decorationType = null;
   }
+
+  if (codeLensRegistration) {
+    codeLensRegistration.dispose();
+    codeLensRegistration = null;
+  }
+}
+
+function clearCodeLens() {
+  if (currentLensState.text) {
+    currentLensState.text = '';
+    codeLensEmitter && codeLensEmitter.fire();
+  }
 }
 
 module.exports = {
@@ -196,4 +264,6 @@ module.exports = {
   showWarningMessage,
   showInfoMessage,
   cleanup,
+  ensureCodeLensProvider,
+  setDisposables,
 };

@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/JoaoPauloCMarra/inline-blame-mini#readme",
   "engines": {
-    "vscode": "^1.103.0"
+    "vscode": "^1.104.0"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -86,11 +86,6 @@
           "default": true,
           "description": "Only show blame when cursor moves to a different line"
         },
-        "inline-blame-mini.ignoreEmptyLines": {
-          "type": "boolean",
-          "default": true,
-          "description": "Skip blame information for empty lines"
-        },
         "inline-blame-mini.style.color": {
           "type": "string",
           "default": "rgba(136, 136, 136, 0.7)",
@@ -125,25 +120,6 @@
           ],
           "default": "end-of-line",
           "description": "Position of the inline blame text relative to the code line"
-        },
-        "inline-blame-mini.git.timeout": {
-          "type": "number",
-          "default": 10000,
-          "minimum": 1000,
-          "maximum": 30000,
-          "description": "Timeout in milliseconds for git operations"
-        },
-        "inline-blame-mini.cache.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable caching of blame results for better performance"
-        },
-        "inline-blame-mini.cache.maxSize": {
-          "type": "number",
-          "default": 100,
-          "minimum": 10,
-          "maximum": 1000,
-          "description": "Maximum number of cached blame results"
         },
         "inline-blame-mini.statusBar.enabled": {
           "type": "boolean",
@@ -185,10 +161,10 @@
     "vscode.git"
   ],
   "devDependencies": {
-    "@eslint/js": "^9.34.0",
-    "@types/vscode": "^1.103.0",
-    "@vscode/vsce": "^3.6.0",
-    "eslint": "^9.34.0",
+    "@eslint/js": "^9.36.0",
+    "@types/vscode": "^1.104.0",
+    "@vscode/vsce": "^3.7.0",
+    "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "prettier": "^3.6.2"

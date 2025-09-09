@@ -16,6 +16,7 @@ A minimal VS Code extension that shows git blame information inline for the curr
 
 - **Lightweight**: Only shows blame for the line where your cursor is positioned
 - **Clean**: Displays author, time, and commit message inline with subtle styling
+- **Flexible**: Choose inline position: end-of-line (default), above-line, or below-line
 - **Smart**: Shows "You" for your own commits and detects Pull Request information
 - **Fast**: Optimized with debouncing and caching for better performance
 
@@ -110,3 +111,4 @@ The extension uses these default styles (configurable via constants in code):
 - Color: `rgba(136, 136, 136, 0.7)` (gray with opacity)
 - Font: Italic, 0.9em size
 - Margin: 1rem left padding
+- Position: `end-of-line` (also supports `above-line` and `below-line` via CodeLens)

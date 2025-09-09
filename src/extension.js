@@ -7,7 +7,7 @@ const {
   cleanup,
 } = require('./ui');
 const { hookEvents } = require('./events');
-const { refresh, toggleEnabled } = require('./core');
+const { refresh, toggleEnabled, updateCacheSettings } = require('./core');
 
 function activate(context) {
   checkGitAvailability(available => {
@@ -53,6 +53,7 @@ function activate(context) {
     ...disposables
   );
 
+  updateCacheSettings();
   refresh();
 }
 

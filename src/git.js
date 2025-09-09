@@ -1,29 +1,30 @@
 const vscode = require('vscode');
 const { execFile } = require('child_process');
-const config = require('./config');
+const { LRUCache } = require('./utils');
+const {
+  CACHE_ENABLED,
+  CACHE_MAX_SIZE,
+  GIT_SHORT_TIMEOUT,
+  GIT_MEDIUM_TIMEOUT,
+  GIT_LONG_TIMEOUT,
+  UNCOMMITTED_HASH_PREFIX,
+} = require('./constants');
 
-const userCache = new Map();
-const commitCache = new Map();
-const prCache = new Map();
-const fileCache = new Map();
-const CACHE_CLEANUP_THRESHOLD = 200;
+const userCache = new LRUCache(CACHE_MAX_SIZE);
+const commitCache = new LRUCache(CACHE_MAX_SIZE);
+const prCache = new LRUCache(CACHE_MAX_SIZE);
+const fileCache = new LRUCache(CACHE_MAX_SIZE);
+let cachingEnabled = true;
 
-const GIT_SHORT_TIMEOUT = 3000;
-const GIT_MEDIUM_TIMEOUT = 5000;
-const UNCOMMITTED_HASH_PREFIX = '00000000';
-
-function cleanupCache(cache) {
-  if (cache.size > CACHE_CLEANUP_THRESHOLD) {
-    const firstKey = cache.keys().next().value;
-    cache.delete(firstKey);
-  }
+function setCacheLimits(limit) {
+  userCache.setLimit(limit);
+  commitCache.setLimit(limit);
+  prCache.setLimit(limit);
+  fileCache.setLimit(limit);
 }
 
 function blameLine(file, line, callback) {
   try {
-    const gitConfig = config.getGitConfig();
-    const operationTimeout = gitConfig.timeout;
-
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(
       vscode.Uri.file(file)
     );
@@ -37,7 +38,7 @@ function blameLine(file, line, callback) {
 
     const opts = {
       cwd: workspaceFolder.uri.fsPath,
-      timeout: operationTimeout,
+      timeout: GIT_LONG_TIMEOUT,
     };
     const args = [
       'blame',
@@ -94,10 +95,10 @@ function blameLine(file, line, callback) {
         gitProcess.kill('SIGTERM');
         callback(null, {
           type: 'TIMEOUT',
-          message: `Git operation timed out after ${operationTimeout / 1000} seconds`,
+          message: `Git operation timed out after ${GIT_LONG_TIMEOUT / 1000} seconds`,
         });
       }
-    }, operationTimeout);
+    }, GIT_LONG_TIMEOUT);
 
     gitProcess.on('exit', () => {
       clearTimeout(timeoutHandler);
@@ -274,7 +275,7 @@ function parseBlameOutput(stdout, cwd, callback) {
 
 function getFullCommitMessage(cwd, hash, callback) {
   const cacheKey = `${cwd}:${hash}`;
-  const cached = commitCache.get(cacheKey);
+  const cached = cachingEnabled ? commitCache.get(cacheKey) : undefined;
   if (cached !== undefined) {
     callback(cached);
     return;
@@ -285,16 +286,14 @@ function getFullCommitMessage(cwd, hash, callback) {
 
   execFile('git', args, opts, (err, stdout) => {
     const result = err ? null : stdout ? stdout.trim() : null;
-    commitCache.set(cacheKey, result);
-
-    cleanupCache(commitCache);
+    if (cachingEnabled) commitCache.set(cacheKey, result);
 
     callback(result);
   });
 }
 
 function getCurrentGitUser(cwd, callback) {
-  if (userCache.has(cwd)) {
+  if (cachingEnabled && userCache.has(cwd)) {
     callback(userCache.get(cwd));
     return;
   }
@@ -324,18 +323,18 @@ function getCurrentGitUser(cwd, callback) {
   Promise.all([getUserName, getUserEmail])
     .then(([name, email]) => {
       const user = name && email ? { name, email } : null;
-      userCache.set(cwd, user);
+      if (cachingEnabled) userCache.set(cwd, user);
       callback(user);
     })
     .catch(() => {
-      userCache.set(cwd, null);
+      if (cachingEnabled) userCache.set(cwd, null);
       callback(null);
     });
 }
 
 function getPRInfo(cwd, hash, callback) {
   const cacheKey = `${cwd}:${hash}`;
-  const cached = prCache.get(cacheKey);
+  const cached = cachingEnabled ? prCache.get(cacheKey) : undefined;
   if (cached !== undefined) {
     callback(cached);
     return;
@@ -383,9 +382,7 @@ function getPRInfo(cwd, hash, callback) {
       }
     }
 
-    prCache.set(cacheKey, result);
-
-    cleanupCache(prCache);
+    if (cachingEnabled) prCache.set(cacheKey, result);
 
     callback(result);
   });
@@ -399,16 +396,13 @@ function checkGitAvailability(callback) {
 
 function getFileLastCommit(file, callback) {
   const cacheKey = file;
-  const cached = fileCache.get(cacheKey);
+  const cached = cachingEnabled ? fileCache.get(cacheKey) : undefined;
   if (cached !== undefined) {
     callback(cached.data, cached.error);
     return;
   }
 
   try {
-    const gitConfig = config.getGitConfig();
-    const operationTimeout = gitConfig.timeout;
-
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(
       vscode.Uri.file(file)
     );
@@ -424,7 +418,7 @@ function getFileLastCommit(file, callback) {
 
     const opts = {
       cwd: workspaceFolder.uri.fsPath,
-      timeout: operationTimeout,
+      timeout: GIT_LONG_TIMEOUT,
     };
     const args = ['log', '-n', '1', '--format=%H|%an|%ae|%at', '--', file];
 
@@ -463,9 +457,8 @@ function getFileLastCommit(file, callback) {
             hash: hash.substring(0, 8),
           };
 
-          fileCache.set(cacheKey, { data: result, error: null });
-
-          cleanupCache(fileCache);
+          if (cachingEnabled)
+            fileCache.set(cacheKey, { data: result, error: null });
 
           callback(result, null);
         });
@@ -474,7 +467,7 @@ function getFileLastCommit(file, callback) {
           type: 'PARSE_ERROR',
           message: `Failed to parse git log output: ${parseError.message}`,
         };
-        fileCache.set(cacheKey, { data: null, error });
+        if (cachingEnabled) fileCache.set(cacheKey, { data: null, error });
         callback(null, error);
       }
     });
@@ -483,8 +476,19 @@ function getFileLastCommit(file, callback) {
       type: 'EXECUTION_ERROR',
       message: `Failed to execute git command: ${error.message}`,
     };
-    fileCache.set(cacheKey, { data: null, error: err });
+    if (cachingEnabled) fileCache.set(cacheKey, { data: null, error: err });
     callback(null, err);
+  }
+}
+
+function updateCacheSettings() {
+  setCacheLimits(CACHE_MAX_SIZE);
+  cachingEnabled = CACHE_ENABLED;
+  if (!CACHE_ENABLED) {
+    userCache.clear();
+    commitCache.clear();
+    prCache.clear();
+    fileCache.clear();
   }
 }
 
@@ -495,4 +499,5 @@ module.exports = {
   getPRInfo,
   checkGitAvailability,
   getFileLastCommit,
+  updateCacheSettings,
 };

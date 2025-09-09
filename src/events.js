@@ -1,11 +1,12 @@
 const vscode = require('vscode');
 const { debounce } = require('./utils');
-const { refresh, clearCaches } = require('./core');
+const { refresh, clearCaches, updateCacheSettings } = require('./core');
 const { clearDecorations, setDisposables, setFileStatusBar } = require('./ui');
-
-const DEBOUNCE_DELAY = 100;
-const SAVE_DEBOUNCE_DELAY = 50;
-const CHANGE_DEBOUNCE_DELAY = 300;
+const {
+  DEBOUNCE_DELAY,
+  SAVE_DEBOUNCE_DELAY,
+  CHANGE_DEBOUNCE_DELAY,
+} = require('./constants');
 
 let lastActiveEditor = null;
 let lastLine = -1;
@@ -80,6 +81,7 @@ function hookEvents() {
   const onConfigChange = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration('inline-blame-mini')) {
       clearCaches();
+      updateCacheSettings();
       refresh();
     }
   });
