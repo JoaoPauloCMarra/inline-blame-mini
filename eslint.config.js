@@ -38,6 +38,7 @@ module.exports = [
   {
     ignores: [
       'node_modules/',
+      'out/',
       '*.vsix',
       '.vscode/',
       'bun.lock',

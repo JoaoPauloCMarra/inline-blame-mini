@@ -12,26 +12,53 @@ A minimal VS Code extension that shows git blame information inline for the curr
 
 ![Status Bar](screenshots/statusbar.png)
 
+### Commit Details Panel
+
+View detailed commit information including author, time, hash, and full commit message.
+
 ## Features
 
 - **Lightweight**: Only shows blame for the line where your cursor is positioned
 - **Clean**: Displays author, time, and commit message inline with subtle styling
 - **Flexible**: Choose inline position: end-of-line (default), above-line, or below-line
-- **Smart**: Shows "You" for your own commits and detects Pull Request information
+- **Smart**: Shows "You" for your own commits
 - **Fast**: Optimized with debouncing and caching for better performance
+- **Interactive**: Click on blame info to view detailed commit information
 
 ## How it works
 
 When you place your cursor on any line in a git-tracked file, the extension automatically shows:
 
-- **Inline blame text** (see first screenshot above): Author name (or "You" for your commits), relative time, and commit message
-- **Status bar information** (see second screenshot above): Simplified format with author and time
-- Pull Request title detection when available
+- **Inline blame text**: Author name (or "You" for your commits), relative time, and commit message
+- **Status bar information**: Simplified format with author and time
 - Automatic updates when moving between lines
 
-Example inline format: ` You, 2 hours ago • Fix inline blame performance issue`
+## Configuration
 
-The extension works automatically - no commands or configuration needed!
+```json
+{
+  "inline-blame-mini.enabled": true,
+  "inline-blame-mini.format": "{author}, {timeAgo} • {summary}",
+  "inline-blame-mini.summaryMaxLength": 60,
+  "inline-blame-mini.showOnlyWhenChanged": true,
+  "inline-blame-mini.style.color": "rgba(136, 136, 136, 0.7)",
+  "inline-blame-mini.style.fontStyle": "italic",
+  "inline-blame-mini.style.fontSize": "0.9em",
+  "inline-blame-mini.style.margin": "0 0 0 1rem",
+  "inline-blame-mini.style.position": "end-of-line",
+  "inline-blame-mini.statusBar.enabled": true,
+  "inline-blame-mini.excludeFiles": [],
+  "inline-blame-mini.includeFiles": ["**/*"]
+}
+```
+
+## Commands
+
+- `Inline Blame Mini: Show Troubleshooting Guide` - Opens help panel with common issues and solutions
+- `Inline Blame Mini: Toggle Inline Blame` - Enable/disable the extension
+- `Inline Blame Mini: Refresh Blame Information` - Manually refresh blame data
+- `Inline Blame Mini: Show Commit Details` - Open detailed commit information panel
+- `Inline Blame Mini: Open Settings` - Open extension settings in VS Code settings panel
 
 ## Requirements
 
@@ -74,17 +101,9 @@ This extension is designed to be extremely fast and efficient:
 - **Blame Cache**: Results cached per file/line/document version
 - **Repository Cache**: Git repository detection cached per file
 - **Commit Cache**: Git commit messages cached to avoid repeated lookups
-- **PR Cache**: Pull request information cached for faster detection
 - **User Cache**: Git user information cached per workspace
 
 ### Smart Processing
-
-- **Duplicate Detection**: Avoids processing same file/line combinations
-- **Change Detection**: Only refreshes when cursor moves to different lines
-- **Selective Updates**: Document changes only trigger refresh if they affect current line
-- **Debounced Operations**: Prevents excessive git calls during rapid changes
-
-### Optimized Git Operations
 
 - **Single Line Blame**: Only queries git blame for current line (not entire files)
 - **Timeout Protection**: All git operations have timeouts to prevent hanging
@@ -99,16 +118,20 @@ This extension is designed to be extremely fast and efficient:
 
 ### Timing Optimizations
 
-- **Fast Debouncing**: 100ms for cursor movement (down from 150ms)
-- **Quick Saves**: 50ms debounce for file saves (down from 200ms)
+- **Fast Debouncing**: 100ms for cursor movement
+- **Quick Saves**: 50ms debounce for file saves
 - **Smart Document Changes**: 300ms debounce only for relevant changes
 - **Reduced Timeouts**: Faster git operation timeouts for responsiveness
 
 ## Styling
 
-The extension uses these default styles (configurable via constants in code):
+The extension uses these default styles (configurable via settings):
 
 - Color: `rgba(136, 136, 136, 0.7)` (gray with opacity)
 - Font: Italic, 0.9em size
 - Margin: 1rem left padding
-- Position: `end-of-line` (also supports `above-line` and `below-line` via CodeLens)
+- Position: `end-of-line` (also supports `above-line` and `below-line`)
+
+```
+
+```

@@ -6,7 +6,6 @@ let decorationType;
 let statusBar;
 let disposables = [];
 let gitAvailable = true;
-let isProcessing = false;
 
 let codeLensEmitter = null;
 let codeLensRegistration = null;
@@ -83,9 +82,11 @@ function addDecoration(editor, currentLine, inlineText) {
   }
 
   const styleConfig = config.getStyleConfig();
+
   if (styleConfig.position === 'end-of-line') {
     const line = editor.document.lineAt(lineIndex);
     const endPosition = new vscode.Position(lineIndex, line.text.length);
+
     const decoration = {
       range: new vscode.Range(endPosition, endPosition),
       renderOptions: {
@@ -98,8 +99,8 @@ function addDecoration(editor, currentLine, inlineText) {
         },
       },
     };
+
     editor.setDecorations(decorationType, [decoration]);
-    clearCodeLens();
   } else {
     ensureCodeLensProvider();
     currentLensState = {
@@ -141,32 +142,6 @@ function setFileStatusBar(text, tooltip) {
   }
 }
 
-let statusBarBackup = null;
-
-function setProcessingState(isProcessingNow) {
-  isProcessing = isProcessingNow;
-  if (isProcessing) {
-    statusBarBackup = {
-      text: statusBar ? statusBar.text || '' : '',
-      tooltip: statusBar ? statusBar.tooltip || '' : '',
-    };
-    setStatusBar(
-      'Loading blame info...',
-      'Getting git blame information for current line',
-      'PROCESSING'
-    );
-  } else if (statusBarBackup) {
-    if (statusBarBackup.text) {
-      statusBar.text = statusBarBackup.text;
-      statusBar.tooltip = statusBarBackup.tooltip;
-      statusBar.command = undefined;
-    } else {
-      setStatusBar('', '', 'INFO');
-    }
-    statusBarBackup = null;
-  }
-}
-
 function showMessage(type, title, message, actions = [], callback = null) {
   const options = { modal: false, detail: message };
   const method =
@@ -202,10 +177,6 @@ function clearDecorations(editor) {
     editor.setDecorations(decorationType, []);
   }
   clearCodeLens();
-}
-
-function setDisposables(newDisposables) {
-  disposables = newDisposables;
 }
 
 function getGitAvailability() {
@@ -257,7 +228,6 @@ module.exports = {
   setGitAvailability,
   setStatusBar,
   setFileStatusBar,
-  setProcessingState,
   clearDecorations,
   getGitAvailability,
   showErrorMessage,
@@ -265,5 +235,4 @@ module.exports = {
   showInfoMessage,
   cleanup,
   ensureCodeLensProvider,
-  setDisposables,
 };

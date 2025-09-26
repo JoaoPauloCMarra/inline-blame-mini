@@ -1,24 +1,18 @@
 const vscode = require('vscode');
 const { CONFIG_SECTION } = require('./constants');
 
-function toPosix(p) {
-  return (p || '').replace(/\\/g, '/');
-}
-
 function simpleGlobMatch(pattern, str) {
-  const pat = toPosix(pattern || '').replace(/^\.\//, '');
-  const s = toPosix(str || '');
+  if (pattern === '**/*' || pattern === '*') return true;
+  if (!pattern.includes('*') && !pattern.includes('?'))
+    return str.includes(pattern);
 
-  if (pat === '**/*' || pat === '*') return true;
-  if (!pat.includes('*') && !pat.includes('?')) return s.includes(pat);
-
-  const regex = pat
+  const regex = pattern
     .replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
     .replace(/\*\*/g, '.*')
     .replace(/\*/g, '[^/]*')
     .replace(/\?/g, '.');
 
-  return new RegExp(`^${regex}$`).test(s);
+  return new RegExp(`^${regex}$`).test(str);
 }
 
 function getConfig() {
@@ -41,10 +35,6 @@ function update(
 
 function isEnabled() {
   return get('enabled', true);
-}
-
-function getDelay() {
-  return Math.max(0, Math.min(2000, get('delay', 100)));
 }
 
 function getFormat() {
@@ -109,19 +99,10 @@ function formatBlameText(data, template = null) {
     .replace('{pr}', prText);
 }
 
-function onConfigurationChanged(callback) {
-  return vscode.workspace.onDidChangeConfiguration(event => {
-    if (event.affectsConfiguration(CONFIG_SECTION)) {
-      callback(event);
-    }
-  });
-}
-
 module.exports = {
   get,
   update,
   isEnabled,
-  getDelay,
   getFormat,
   getSummaryMaxLength,
   shouldShowOnlyWhenChanged,
@@ -130,6 +111,5 @@ module.exports = {
   getFileFilters,
   shouldProcessFile,
   formatBlameText,
-  onConfigurationChanged,
   CONFIG_SECTION,
 };

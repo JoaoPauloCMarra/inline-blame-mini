@@ -1,7 +1,7 @@
 const vscode = require('vscode');
 const { debounce } = require('./utils');
 const { refresh, clearCaches, updateCacheSettings } = require('./core');
-const { clearDecorations, setDisposables, setFileStatusBar } = require('./ui');
+const { clearDecorations, setFileStatusBar } = require('./ui');
 const {
   DEBOUNCE_DELAY,
   SAVE_DEBOUNCE_DELAY,
@@ -102,8 +102,6 @@ function hookEvents() {
     onConfigChange,
     onCloseDocument,
   ];
-
-  setDisposables(disposables);
 
   return disposables;
 }

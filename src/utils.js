@@ -124,17 +124,6 @@ function findGitRoot(filePath) {
   }
 }
 
-function getFileRelativeToGit(filePath) {
-  const gitRoot = findGitRoot(filePath);
-  if (!gitRoot) return null;
-
-  try {
-    return path.relative(gitRoot, filePath);
-  } catch (error) {
-    return null;
-  }
-}
-
 function validateLinePosition(editor, line) {
   if (!editor || !editor.document) {
     return { valid: false, error: 'No active editor' };
@@ -158,7 +147,6 @@ module.exports = {
   debounce,
   isGitRepository,
   findGitRoot,
-  getFileRelativeToGit,
   validateLinePosition,
   LRUCache,
   setGitRootCacheLimit: limit => gitRootCache.setLimit(limit),

@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -51,6 +51,16 @@
         "command": "inline-blame-mini.refresh",
         "title": "Refresh Blame Information",
         "category": "Inline Blame Mini"
+      },
+      {
+        "command": "inline-blame-mini.showCommitDetails",
+        "title": "Show Commit Details",
+        "category": "Inline Blame Mini"
+      },
+      {
+        "command": "inline-blame-mini.openSettings",
+        "title": "Open Settings",
+        "category": "Inline Blame Mini"
       }
     ],
     "configuration": {
@@ -61,13 +71,6 @@
           "type": "boolean",
           "default": true,
           "description": "Enable or disable inline blame information display"
-        },
-        "inline-blame-mini.delay": {
-          "type": "number",
-          "default": 100,
-          "minimum": 0,
-          "maximum": 2000,
-          "description": "Delay in milliseconds before showing blame information when cursor moves"
         },
         "inline-blame-mini.format": {
           "type": "string",
@@ -163,7 +166,7 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@types/vscode": "^1.104.0",
-    "@vscode/vsce": "^3.7.0",
+    "@vscode/vsce": "^3.6.1",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",

@@ -37,126 +37,122 @@ function clearStatusBar() {
   setFileStatusBar('', '');
 }
 
+function getGitRoot(file) {
+  let gitRoot = repoCache.get(file);
+  if (gitRoot === undefined) {
+    gitRoot = findGitRoot(file);
+    if (CACHE_ENABLED) repoCache.set(file, gitRoot);
+  }
+  return gitRoot;
+}
+
+function shouldSkipProcessing(editor, file, currentLine) {
+  return (
+    config.shouldShowOnlyWhenChanged() &&
+    lastEditor === editor &&
+    lastProcessedFile === file &&
+    lastProcessedLine === currentLine
+  );
+}
+
+function handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar) {
+  if (cachedBlame.error) {
+    if (updateStatusBar) handleBlameError(cachedBlame.error, editor);
+  } else if (cachedBlame.data) {
+    if (cachedBlame.data.isUncommitted) {
+      const inlineText = ` ${cachedBlame.data.summary}`;
+      addDecoration(editor, currentLine, inlineText);
+    } else {
+      displayBlameInfo(editor, currentLine, cachedBlame.data);
+    }
+  } else if (updateStatusBar) {
+    handleNoBlameData(editor);
+  }
+}
+
+function handleBlameResult(
+  blameData,
+  error,
+  editor,
+  currentLine,
+  updateStatusBar
+) {
+  if (error) {
+    if (updateStatusBar) handleBlameError(error, editor);
+    return;
+  }
+
+  if (!blameData) {
+    if (updateStatusBar) handleNoBlameData(editor);
+    return;
+  }
+
+  if (blameData.isUncommitted) {
+    const inlineText = ` ${blameData.summary}`;
+    addDecoration(editor, currentLine, inlineText);
+    return;
+  }
+
+  displayBlameInfo(editor, currentLine, blameData);
+}
+
 function refresh() {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) {
+  if (
+    !editor ||
+    !getGitAvailability() ||
+    !config.isEnabled() ||
+    editor.document.isUntitled
+  ) {
     lastStatusBarFile = null;
     clearStatusBar();
     return;
   }
 
   clearDecorations(editor);
-
-  if (!getGitAvailability()) {
-    clearStatusBar();
-    return;
-  }
-
-  if (!config.isEnabled()) {
-    clearStatusBar();
-    return;
-  }
-
-  if (editor.document.isUntitled) {
-    clearStatusBar();
-    return;
-  }
-
   const file = editor.document.fileName;
   const currentLine = editor.selection.active.line + 1;
+  processLine(editor, file, currentLine, true);
+}
 
-  if (lastStatusBarFile !== file) {
-    lastStatusBarFile = file;
-    updateFileStatusBar(file);
+function processLine(editor, file, currentLine, updateStatusBar = false) {
+  if (updateStatusBar) {
+    if (lastStatusBarFile !== file) {
+      lastStatusBarFile = file;
+      updateFileStatusBar(file);
+    }
   }
 
   if (!config.shouldProcessFile(file)) {
-    clearStatusBar();
+    if (updateStatusBar) clearStatusBar();
     return;
   }
 
-  if (
-    config.shouldShowOnlyWhenChanged() &&
-    lastEditor === editor &&
-    lastProcessedFile === file &&
-    lastProcessedLine === currentLine
-  ) {
-    return;
-  }
+  if (shouldSkipProcessing(editor, file, currentLine)) return;
 
   lastEditor = editor;
   lastProcessedFile = file;
   lastProcessedLine = currentLine;
 
-  const validation = validateLinePosition(editor, currentLine);
-  if (!validation.valid) {
-    return;
-  }
+  if (!validateLinePosition(editor, currentLine).valid) return;
 
   const lineIndex = currentLine - 1;
   const line = editor.document.lineAt(lineIndex);
+  if (IGNORE_EMPTY_LINES && line.text.trim() === '') return;
 
-  if (IGNORE_EMPTY_LINES && line.text.trim() === '') {
-    return;
-  }
-
-  let gitRoot = repoCache.get(file);
-  if (gitRoot === undefined) {
-    gitRoot = findGitRoot(file);
-    if (CACHE_ENABLED) repoCache.set(file, gitRoot);
-  }
-
-  if (!gitRoot) {
-    return;
-  }
-
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(
-    vscode.Uri.file(file)
-  );
-  if (!workspaceFolder) {
-    return;
-  }
+  if (!getGitRoot(file)) return;
 
   const cacheKey = `${file}:${currentLine}:${editor.document.version}`;
   const cachedBlame = CACHE_ENABLED ? blameCache.get(cacheKey) : undefined;
+
   if (cachedBlame) {
-    if (cachedBlame.error) {
-      handleBlameError(cachedBlame.error, editor);
-    } else if (cachedBlame.data) {
-      if (cachedBlame.data.isUncommitted) {
-        const inlineText = ` ${cachedBlame.data.summary}`;
-        addDecoration(editor, currentLine, inlineText);
-      } else {
-        displayBlameInfo(editor, currentLine, cachedBlame.data);
-      }
-    } else {
-      handleNoBlameData(editor);
-    }
+    handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar);
     return;
   }
 
   blameLine(file, currentLine, (blameData, error) => {
-    if (CACHE_ENABLED) {
-      blameCache.set(cacheKey, { data: blameData, error });
-    }
-
-    if (error) {
-      handleBlameError(error, editor);
-      return;
-    }
-
-    if (!blameData) {
-      handleNoBlameData(editor);
-      return;
-    }
-
-    if (blameData.isUncommitted) {
-      const inlineText = ` ${blameData.summary}`;
-      addDecoration(editor, currentLine, inlineText);
-      return;
-    }
-
-    displayBlameInfo(editor, currentLine, blameData);
+    if (CACHE_ENABLED) blameCache.set(cacheKey, { data: blameData, error });
+    handleBlameResult(blameData, error, editor, currentLine, updateStatusBar);
   });
 }
 
@@ -239,6 +235,7 @@ function displayBlameInfo(editor, currentLine, blameData) {
   };
 
   const inlineText = ` ${config.formatBlameText(formatData)}`;
+
   addDecoration(editor, currentLine, inlineText);
 }
 
