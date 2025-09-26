@@ -1,4 +1,7 @@
 # Development files
+bun.lock
+.github/**
+screenshots/**
 .vscode/**
 .git
 .gitignore

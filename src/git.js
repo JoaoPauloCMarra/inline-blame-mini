@@ -2,7 +2,7 @@ const vscode = require('vscode');
 const path = require('path');
 const { LRUCache } = require('./utils');
 const { CACHE_MAX_SIZE } = require('./constants');
-const { spawn } = require('child_process');
+const { execFile } = require('child_process');
 
 const userCache = new LRUCache(CACHE_MAX_SIZE);
 const fileCache = new LRUCache(CACHE_MAX_SIZE);
@@ -23,7 +23,7 @@ function blameLine(file, line, callback) {
     const cwd = workspaceFolder.uri.fsPath;
     const relativePath = path.relative(cwd, file);
 
-    const gitProcess = spawn(
+    execFile(
       'git',
       [
         'blame',
@@ -33,53 +33,31 @@ function blameLine(file, line, callback) {
         '--',
         relativePath,
       ],
-      {
-        cwd: cwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
+      { cwd: cwd },
+      (error, stdout, stderr) => {
+        if (error) {
+          const err = categorizeGitError(error, stderr);
+          callback(null, err);
+          return;
+        }
+
+        if (!stdout.trim()) {
+          callback(null, {
+            type: 'NO_BLAME_DATA',
+            message: 'No blame data available for this line',
+          });
+          return;
+        }
+
+        parseBlameFromGit(stdout.trim(), cwd, (blameData, parseError) => {
+          if (parseError) {
+            callback(null, parseError);
+          } else {
+            callback(blameData, null);
+          }
+        });
       }
     );
-
-    let stdout = '';
-    let stderr = '';
-
-    gitProcess.stdout.on('data', data => {
-      stdout += data.toString();
-    });
-
-    gitProcess.stderr.on('data', data => {
-      stderr += data.toString();
-    });
-
-    gitProcess.on('close', code => {
-      if (code !== 0) {
-        const error = categorizeGitError({ code, message: stderr }, stderr);
-        callback(null, error);
-        return;
-      }
-
-      if (!stdout.trim()) {
-        callback(null, {
-          type: 'NO_BLAME_DATA',
-          message: 'No blame data available for this line',
-        });
-        return;
-      }
-
-      parseBlameFromGit(stdout.trim(), cwd, (blameData, parseError) => {
-        if (parseError) {
-          callback(null, parseError);
-        } else {
-          callback(blameData, null);
-        }
-      });
-    });
-
-    gitProcess.on('error', error => {
-      callback(null, {
-        type: 'GIT_NOT_FOUND',
-        message: `Git command failed: ${error.message}`,
-      });
-    });
   } catch (error) {
     callback(null, {
       type: 'EXECUTION_ERROR',
@@ -240,71 +218,47 @@ function getFileLastCommit(file, callback) {
     const cwd = workspaceFolder.uri.fsPath;
     const relativePath = path.relative(cwd, file);
 
-    const gitProcess = spawn(
+    execFile(
       'git',
       ['log', '--oneline', '-1', '--', relativePath],
-      {
-        cwd: cwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
+      { cwd: cwd },
+      (error, stdout, stderr) => {
+        if (error) {
+          const err = {
+            type: 'EXECUTION_ERROR',
+            message: `Failed to get file commit history: ${stderr || error.message}`,
+          };
+          fileCache.set(cacheKey, { data: null, error: err });
+          callback(null, err);
+          return;
+        }
+
+        if (!stdout.trim()) {
+          const error = {
+            type: 'FILE_NOT_TRACKED',
+            message: 'File has no git history',
+          };
+          fileCache.set(cacheKey, { data: null, error });
+          callback(null, error);
+          return;
+        }
+
+        const line = stdout.trim().split(' ');
+        const hash = line[0];
+
+        getCurrentGitUser(cwd, currentUser => {
+          const result = {
+            author: currentUser ? currentUser.name : 'Unknown',
+            time: Date.now() / 1000,
+            hash: hash.substring(0, 8),
+          };
+
+          fileCache.set(cacheKey, { data: result, error: null });
+
+          callback(result, null);
+        });
       }
     );
-
-    let stdout = '';
-    let stderr = '';
-
-    gitProcess.stdout.on('data', data => {
-      stdout += data.toString();
-    });
-
-    gitProcess.stderr.on('data', data => {
-      stderr += data.toString();
-    });
-
-    gitProcess.on('close', code => {
-      if (code !== 0) {
-        const err = {
-          type: 'EXECUTION_ERROR',
-          message: `Failed to get file commit history: ${stderr || 'Unknown error'}`,
-        };
-        fileCache.set(cacheKey, { data: null, error: err });
-        callback(null, err);
-        return;
-      }
-
-      if (!stdout.trim()) {
-        const error = {
-          type: 'FILE_NOT_TRACKED',
-          message: 'File has no git history',
-        };
-        fileCache.set(cacheKey, { data: null, error });
-        callback(null, error);
-        return;
-      }
-
-      const line = stdout.trim().split(' ');
-      const hash = line[0];
-
-      getCurrentGitUser(cwd, currentUser => {
-        const result = {
-          author: currentUser ? currentUser.name : 'Unknown',
-          time: Date.now() / 1000,
-          hash: hash.substring(0, 8),
-        };
-
-        fileCache.set(cacheKey, { data: result, error: null });
-
-        callback(result, null);
-      });
-    });
-
-    gitProcess.on('error', error => {
-      const err = {
-        type: 'EXECUTION_ERROR',
-        message: `Failed to execute git command: ${error.message}`,
-      };
-      fileCache.set(cacheKey, { data: null, error: err });
-      callback(null, err);
-    });
   } catch (error) {
     const err = {
       type: 'EXECUTION_ERROR',
@@ -321,63 +275,34 @@ function getCurrentGitUser(cwd, callback) {
     return;
   }
 
-  const gitProcess = spawn('git', ['config', 'user.name'], {
-    cwd: cwd,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-
-  let name = '';
-  let email = '';
-
-  gitProcess.stdout.on('data', data => {
-    name = data.toString().trim();
-  });
-
-  gitProcess.on('close', code => {
-    if (code !== 0 || !name) {
+  execFile('git', ['config', 'user.name'], { cwd: cwd }, (error, stdout) => {
+    if (error || !stdout.trim()) {
       userCache.set(cwd, null);
       callback(null);
       return;
     }
 
-    const emailProcess = spawn('git', ['config', 'user.email'], {
-      cwd: cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    const name = stdout.trim();
 
-    emailProcess.stdout.on('data', data => {
-      email = data.toString().trim();
-    });
-
-    emailProcess.on('close', emailCode => {
-      const user = emailCode === 0 && email ? { name, email } : null;
-      userCache.set(cwd, user);
-      callback(user);
-    });
-
-    emailProcess.on('error', () => {
-      userCache.set(cwd, null);
-      callback(null);
-    });
-  });
-
-  gitProcess.on('error', () => {
-    userCache.set(cwd, null);
-    callback(null);
+    execFile(
+      'git',
+      ['config', 'user.email'],
+      { cwd: cwd },
+      (emailError, emailStdout) => {
+        const user =
+          !emailError && emailStdout.trim()
+            ? { name, email: emailStdout.trim() }
+            : null;
+        userCache.set(cwd, user);
+        callback(user);
+      }
+    );
   });
 }
 
 function checkGitAvailability(callback) {
-  const gitProcess = spawn('git', ['--version'], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-
-  gitProcess.on('close', code => {
-    callback(code === 0);
-  });
-
-  gitProcess.on('error', () => {
-    callback(false);
+  execFile('git', ['--version'], error => {
+    callback(!error);
   });
 }
 

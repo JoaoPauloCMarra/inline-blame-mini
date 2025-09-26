@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
