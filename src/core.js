@@ -24,6 +24,9 @@ const {
   CACHE_ENABLED,
   CACHE_MAX_SIZE,
   IGNORE_EMPTY_LINES,
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILE_LINES,
+  PREFETCH_LINE_RADIUS,
 } = require('./constants');
 
 const blameCache = new LRUCache(CACHE_MAX_SIZE);
@@ -53,6 +56,21 @@ function shouldSkipProcessing(editor, file, currentLine) {
     lastProcessedFile === file &&
     lastProcessedLine === currentLine
   );
+}
+
+function isFileTooLarge(file, editor) {
+  try {
+    const stats = require('fs').statSync(file);
+    if (stats.size > MAX_FILE_SIZE_BYTES) {
+      return true;
+    }
+    if (editor && editor.document.lineCount > MAX_FILE_LINES) {
+      return true;
+    }
+  } catch (error) {
+    return false;
+  }
+  return false;
 }
 
 function handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar) {
@@ -136,6 +154,18 @@ function processLine(editor, file, currentLine, updateStatusBar = false) {
 
   if (!validateLinePosition(editor, currentLine).valid) return;
 
+  if (isFileTooLarge(file, editor)) {
+    // Skip processing for very large files to maintain performance
+    if (updateStatusBar) {
+      setStatusBar(
+        'File too large',
+        'Inline blame is disabled for large files to maintain performance',
+        'INFO'
+      );
+    }
+    return;
+  }
+
   const lineIndex = currentLine - 1;
   const line = editor.document.lineAt(lineIndex);
   if (IGNORE_EMPTY_LINES && line.text.trim() === '') return;
@@ -147,13 +177,44 @@ function processLine(editor, file, currentLine, updateStatusBar = false) {
 
   if (cachedBlame) {
     handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar);
+    // Smart prefetch: load nearby lines in background
+    smartPrefetch(editor, file, currentLine, editor.document.version);
     return;
   }
 
   blameLine(file, currentLine, (blameData, error) => {
     if (CACHE_ENABLED) blameCache.set(cacheKey, { data: blameData, error });
     handleBlameResult(blameData, error, editor, currentLine, updateStatusBar);
+
+    // Smart prefetch: load nearby lines in background
+    if (!error && blameData) {
+      smartPrefetch(editor, file, currentLine, editor.document.version);
+    }
   });
+}
+
+function smartPrefetch(editor, file, currentLine, documentVersion) {
+  const radius = PREFETCH_LINE_RADIUS;
+  for (let offset = 1; offset <= radius; offset++) {
+    const prefetchLine = currentLine + offset;
+    const prefetchCacheKey = `${file}:${prefetchLine}:${documentVersion}`;
+
+    if (
+      !blameCache.has(prefetchCacheKey) &&
+      validateLinePosition(editor, prefetchLine).valid
+    ) {
+      const lineIndex = prefetchLine - 1;
+      const line = editor.document.lineAt(lineIndex);
+
+      if (!(IGNORE_EMPTY_LINES && line.text.trim() === '')) {
+        blameLine(file, prefetchLine, (blameData, error) => {
+          if (CACHE_ENABLED) {
+            blameCache.set(prefetchCacheKey, { data: blameData, error });
+          }
+        });
+      }
+    }
+  }
 }
 
 function updateFileStatusBar(file) {

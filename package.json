@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -29,7 +29,8 @@
   },
   "homepage": "https://github.com/JoaoPauloCMarra/inline-blame-mini#readme",
   "engines": {
-    "vscode": "^1.104.0"
+    "vscode": "^1.100.0",
+    "node": ">=18.0.0"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -164,12 +165,12 @@
     "vscode.git"
   ],
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/vscode": "^1.104.0",
-    "@vscode/vsce": "^3.6.1",
-    "eslint": "^9.36.0",
+    "@eslint/js": "^9.39.1",
+    "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "^3.7.1",
+    "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
-    "prettier": "^3.6.2"
+    "prettier": "^3.7.4"
   }
 }

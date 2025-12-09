@@ -1,7 +1,7 @@
 const vscode = require('vscode');
 const path = require('path');
 const { LRUCache } = require('./utils');
-const { CACHE_MAX_SIZE } = require('./constants');
+const { CACHE_MAX_SIZE, GIT_TIMEOUT_MS } = require('./constants');
 const { execFile } = require('child_process');
 
 const userCache = new LRUCache(CACHE_MAX_SIZE);
@@ -30,10 +30,15 @@ function blameLine(file, line, callback) {
         '-L',
         `${line},${line}`,
         '--line-porcelain',
+        '--no-merges', // Skip merge commits for cleaner history
         '--',
         relativePath,
       ],
-      { cwd: cwd },
+      {
+        cwd: cwd,
+        timeout: GIT_TIMEOUT_MS,
+        maxBuffer: 1024 * 1024,
+      },
       (error, stdout, stderr) => {
         if (error) {
           const err = categorizeGitError(error, stderr);
@@ -105,7 +110,10 @@ function categorizeGitError(err, stderr) {
   }
 
   if (err.code === 'ETIMEDOUT' || errorMessage.includes('timeout')) {
-    return { type: 'TIMEOUT', message: 'Git operation timed out' };
+    return {
+      type: 'TIMEOUT',
+      message: 'Git operation timed out - repository may be too large',
+    };
   }
 
   if (err.code === 'ENOENT') {

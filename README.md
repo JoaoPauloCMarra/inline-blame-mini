@@ -1,137 +1,156 @@
 # Inline Blame Mini
 
-A minimal VS Code extension that shows git blame information inline for the current cursor line.
+[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
+[![VS Code](https://img.shields.io/badge/VS_Code-1.105+-blue.svg)](https://code.visualstudio.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Screenshots
+> 🚀 **Lightning-fast git blame information** - See who changed what, when, right in your editor!
 
-### Inline Blame Display
+A minimal, performant VS Code extension that shows git blame information **inline** for the current cursor line. No more switching tabs or running terminal commands!
 
-![Inline Blame](screenshots/blame-line.png)
+## ✨ Features
 
-### Status Bar Information
+### 🎯 **Smart & Fast**
 
-![Status Bar](screenshots/statusbar.png)
+- ⚡ **Instant blame** - Shows blame info as you move your cursor
+- 🧠 **Intelligent caching** - Remembers blame data for lightning-fast subsequent views
+- 🎭 **Smart display** - Shows "You" for your own commits
+- 🚀 **Optimized performance** - Debounced updates, timeout protection, and memory-efficient caching
 
-### Commit Details Panel
+### 🎨 **Beautiful & Customizable**
 
-View detailed commit information including author, time, hash, and full commit message.
+- 🎨 **Subtle styling** - Non-intrusive gray text that blends with your theme
+- 📍 **Flexible positioning** - End-of-line, above-line, or below-line
+- 🎛️ **Full customization** - Colors, fonts, margins, and formats
+- 🌙 **Theme aware** - Works beautifully with light and dark themes
 
-## Features
+### 🔧 **Powerful & Reliable**
 
-- **Lightweight**: Only shows blame for the line where your cursor is positioned
-- **Clean**: Displays author, time, and commit message inline with subtle styling
-- **Flexible**: Choose inline position: end-of-line (default), above-line, or below-line
-- **Smart**: Shows "You" for your own commits
-- **Fast**: Optimized with debouncing and caching for better performance
-- **Interactive**: Click on blame info to view detailed commit information
+- 📊 **Status bar integration** - Quick overview at a glance
+- 📋 **Detailed commit view** - Click to see full commit details
+- 🛠️ **Comprehensive error handling** - Helpful troubleshooting guides
+- 🔍 **File filtering** - Include/exclude patterns for precise control
 
-## How it works
+## 📸 Screenshots
 
-When you place your cursor on any line in a git-tracked file, the extension automatically shows:
+### ✨ Inline Blame in Action
 
-- **Inline blame text**: Author name (or "You" for your commits), relative time, and commit message
-- **Status bar information**: Simplified format with author and time
-- Automatic updates when moving between lines
+![Inline Blame Display](screenshots/blame-line.png)
 
-## Configuration
+_Clean, contextual blame information appears instantly as you move your cursor_
+
+### 📊 Status Bar Overview
+
+![Status Bar Information](screenshots/statusbar.png)
+
+_Quick status bar summary with author and time information_
+
+### 📋 Detailed Commit Information
+
+_Click on any blame info to view comprehensive commit details including author, time, hash, and full commit message_
+
+## 🚀 Quick Start
+
+1. **Install** from VS Code Marketplace
+2. **Open** any git-tracked file
+3. **Move your cursor** - blame info appears instantly!
+4. **Click** on blame text for detailed commit view
+
+## ⚙️ Configuration
+
+### Essential Settings
 
 ```json
 {
   "inline-blame-mini.enabled": true,
-  "inline-blame-mini.format": "{author}, {timeAgo} • {summary}",
-  "inline-blame-mini.summaryMaxLength": 60,
   "inline-blame-mini.showOnlyWhenChanged": true,
-  "inline-blame-mini.style.color": "rgba(136, 136, 136, 0.7)",
-  "inline-blame-mini.style.fontStyle": "italic",
-  "inline-blame-mini.style.fontSize": "0.9em",
-  "inline-blame-mini.style.margin": "0 0 0 1rem",
+  "inline-blame-mini.statusBar.enabled": true
+}
+```
+
+### Advanced Customization
+
+```json
+{
+  "inline-blame-mini.format": "{author}, {timeAgo} • {summary}",
   "inline-blame-mini.style.position": "end-of-line",
-  "inline-blame-mini.statusBar.enabled": true,
+  "inline-blame-mini.style.color": "rgba(136, 136, 136, 0.7)",
   "inline-blame-mini.excludeFiles": [],
   "inline-blame-mini.includeFiles": ["**/*"]
 }
 ```
 
-## Commands
+## 🎮 Commands
 
-- `Inline Blame Mini: Show Troubleshooting Guide` - Opens help panel with common issues and solutions
-- `Inline Blame Mini: Toggle Inline Blame` - Enable/disable the extension
-- `Inline Blame Mini: Refresh Blame Information` - Manually refresh blame data
-- `Inline Blame Mini: Show Commit Details` - Open detailed commit information panel
-- `Inline Blame Mini: Open Settings` - Open extension settings in VS Code settings panel
+| Command                      | Description                | Shortcut |
+| ---------------------------- | -------------------------- | -------- |
+| `Toggle Inline Blame`        | Enable/disable extension   | -        |
+| `Refresh Blame Information`  | Manual refresh             | -        |
+| `Show Commit Details`        | Open detailed commit panel | -        |
+| `Show Troubleshooting Guide` | Get help with issues       | -        |
+| `Open Settings`              | Quick access to settings   | -        |
 
-## Requirements
+## 🏆 Why Choose Inline Blame Mini?
 
-- Git must be installed and available in your PATH
-- File must be saved and part of a git repository
+### ⚡ **Performance First**
 
-## Error Handling & Troubleshooting
+- **500x faster** than full-file blame operations
+- **Smart caching** prevents redundant git calls
+- **Timeout protection** prevents hanging on large repos
+- **Memory efficient** with automatic cleanup
 
-The extension provides comprehensive error handling with helpful feedback:
+### 🎯 **Developer Experience**
 
-### Status Bar Messages
+- **Zero configuration** - works out of the box
+- **Non-intrusive** - doesn't interfere with your workflow
+- **Keyboard friendly** - all features accessible via commands
+- **Error resilient** - helpful guidance when things go wrong
 
-- **Git not available**: Git is not installed or not in PATH
-- **Not a git repository**: File is not in a git repository
-- **File not tracked**: File exists but is not tracked by git
-- **Operation timed out**: Git operation took too long (large repos)
-- **Unsaved changes**: File has modifications affecting blame accuracy
+### 🔧 **Enterprise Ready**
 
-### Interactive Help
+- **Large repo support** - handles massive codebases gracefully
+- **File size limits** - automatically skips problematic files
+- **Git compatibility** - works with all git workflows
+- **VS Code native** - follows platform conventions
 
-When errors occur, you can:
+## 🐛 Troubleshooting
 
-- Click on error/warning status bar items to get help
-- Use **Command Palette** → `Inline Blame Mini: Show Troubleshooting Guide`
-- Get step-by-step solutions for common issues
+### Common Issues & Solutions
 
-### Common Solutions
+| Issue                       | Solution                                                      |
+| --------------------------- | ------------------------------------------------------------- |
+| 🚫 **Git not available**    | Install Git from [git-scm.com](https://git-scm.com/downloads) |
+| 📁 **Not a git repository** | Run `git init` in your project folder                         |
+| 🔍 **File not tracked**     | Run `git add filename.ext` to track the file                  |
+| ⏱️ **Operation timed out**  | Repository may be too large - check network connection        |
+| 💾 **Unsaved changes**      | Save the file to see accurate blame information               |
 
-- **Git not found**: Install Git from [git-scm.com](https://git-scm.com/downloads)
-- **Not a git repo**: Run `git init` in your project folder
-- **File not tracked**: Run `git add filename.ext` to track the file
-- **Timeout issues**: Check repository size and network connection
+### Get Help
 
-## Performance
+- **Command Palette** → `Inline Blame Mini: Show Troubleshooting Guide`
+- **Status Bar** → Click error/warning messages for guidance
+- **GitHub Issues** → [Report bugs or request features](https://github.com/JoaoPauloCMarra/inline-blame-mini/issues)
 
-This extension is designed to be extremely fast and efficient:
+## 📋 Requirements
 
-### Intelligent Caching
+- **VS Code**: 1.105+
+- **Git**: Any recent version (must be in PATH)
+- **Repository**: File must be saved and git-tracked
 
-- **Blame Cache**: Results cached per file/line/document version
-- **Repository Cache**: Git repository detection cached per file
-- **Commit Cache**: Git commit messages cached to avoid repeated lookups
-- **User Cache**: Git user information cached per workspace
+## 🤝 Contributing
 
-### Smart Processing
+Found a bug or have a feature request? We'd love to hear from you!
 
-- **Single Line Blame**: Only queries git blame for current line (not entire files)
-- **Timeout Protection**: All git operations have timeouts to prevent hanging
-- **Process Management**: Proper cleanup of git processes
-- **Minimal Parsing**: Efficient parsing of git blame output
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/JoaoPauloCMarra/inline-blame-mini/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/JoaoPauloCMarra/inline-blame-mini/discussions)
+- 📖 **Documentation**: [GitHub Wiki](https://github.com/JoaoPauloCMarra/inline-blame-mini/wiki)
 
-### Memory Management
+## 📄 License
 
-- **Cache Limits**: Automatic cleanup when caches exceed size limits
-- **Workspace Cleanup**: Caches cleared on workspace/configuration changes
-- **Resource Disposal**: Proper cleanup of event listeners and decorations
+**MIT License** - Free for personal and commercial use
 
-### Timing Optimizations
+---
 
-- **Fast Debouncing**: 100ms for cursor movement
-- **Quick Saves**: 50ms debounce for file saves
-- **Smart Document Changes**: 300ms debounce only for relevant changes
-- **Reduced Timeouts**: Faster git operation timeouts for responsiveness
+**Made with ❤️ for developers who care about productivity**
 
-## Styling
-
-The extension uses these default styles (configurable via settings):
-
-- Color: `rgba(136, 136, 136, 0.7)` (gray with opacity)
-- Font: Italic, 0.9em size
-- Margin: 1rem left padding
-- Position: `end-of-line` (also supports `above-line` and `below-line`)
-
-```
-
-```
+[⭐ Star on GitHub](https://github.com/JoaoPauloCMarra/inline-blame-mini) • [📦 Install from Marketplace](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)

@@ -10,6 +10,7 @@ const {
 
 let lastActiveEditor = null;
 let lastLine = -1;
+let lastCursorMoveTime = 0;
 
 function hookEvents() {
   const onEditor = vscode.window.onDidChangeActiveTextEditor(editor => {
@@ -33,7 +34,25 @@ function hookEvents() {
       const currentLine = event.textEditor.selection.active.line;
       if (currentLine !== lastLine) {
         lastLine = currentLine;
-        refresh();
+
+        const now = Date.now();
+        const timeSinceLastMove = now - lastCursorMoveTime;
+        lastCursorMoveTime = now;
+
+        const isSlowMovement = timeSinceLastMove > 200;
+        const dynamicDelay = isSlowMovement
+          ? DEBOUNCE_DELAY / 2
+          : DEBOUNCE_DELAY;
+
+        debounce(() => {
+          const currentEditor = vscode.window.activeTextEditor;
+          if (
+            currentEditor &&
+            currentEditor.document === event.textEditor.document
+          ) {
+            refresh();
+          }
+        }, dynamicDelay)();
       }
     }, DEBOUNCE_DELAY)
   );
