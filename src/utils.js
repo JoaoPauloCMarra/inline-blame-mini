@@ -97,29 +97,35 @@ function isGitRepository(folderPath) {
 }
 
 function findGitRoot(filePath) {
-  const cached = gitRootCache.get(filePath);
+  const absoluteFilePath = path.resolve(filePath);
+  const cached = gitRootCache.get(absoluteFilePath);
   if (cached !== undefined) {
     return cached;
   }
 
   try {
-    let currentDir = path.dirname(filePath);
-    const root = path.parse(currentDir).root;
+    let currentDir = path.dirname(absoluteFilePath);
     let result = null;
 
-    while (currentDir !== root) {
+    while (true) {
       if (isGitRepository(currentDir)) {
         result = currentDir;
         break;
       }
-      currentDir = path.dirname(currentDir);
+
+      const parentDir = path.dirname(currentDir);
+      if (parentDir === currentDir) {
+        break;
+      }
+
+      currentDir = parentDir;
     }
 
-    gitRootCache.set(filePath, result);
+    gitRootCache.set(absoluteFilePath, result);
 
     return result;
   } catch (error) {
-    gitRootCache.set(filePath, null);
+    gitRootCache.set(absoluteFilePath, null);
     return null;
   }
 }

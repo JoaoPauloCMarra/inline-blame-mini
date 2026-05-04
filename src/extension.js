@@ -9,6 +9,15 @@ const {
 const { hookEvents } = require('./events');
 const { refresh, toggleEnabled } = require('./core');
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function activate(context) {
   checkGitAvailability(available => {
     setGitAvailability(available);
@@ -27,8 +36,8 @@ function activate(context) {
 
   const toggleCommand = vscode.commands.registerCommand(
     'inline-blame-mini.toggle',
-    () => {
-      const newState = toggleEnabled();
+    async () => {
+      const newState = await toggleEnabled();
       const message = newState
         ? 'Inline Blame enabled'
         : 'Inline Blame disabled';
@@ -193,7 +202,6 @@ function showCommitDetailsPanel() {
     return;
   }
 
-  // Get blame data for current line
   const { blameLine } = require('./git');
   const currentLine = editor.selection.active.line + 1;
   const file = editor.document.fileName;
@@ -223,6 +231,10 @@ function showCommitDetailsPanel() {
 function getCommitDetailsContent(blameData) {
   const { relativeTime } = require('./utils');
   const timeAgo = relativeTime(blameData.time * 1000);
+  const hash = escapeHtml(blameData.hash);
+  const author = escapeHtml(blameData.author);
+  const summary = escapeHtml(blameData.summary);
+  const prNumber = escapeHtml(blameData.prNumber);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -241,14 +253,14 @@ function getCommitDetailsContent(blameData) {
 <body>
     <h1>Commit Details</h1>
     <div class="commit-info">
-        <p><span class="label">Hash:</span> <span class="commit-hash">${blameData.hash}</span></p>
-        <p><span class="label">Author:</span> ${blameData.author}</p>
-        <p><span class="label">Time:</span> ${timeAgo}</p>
-        ${blameData.prNumber ? `<p><span class="label">PR:</span> #${blameData.prNumber}</p>` : ''}
+        <p><span class="label">Hash:</span> <span class="commit-hash">${hash}</span></p>
+        <p><span class="label">Author:</span> ${author}</p>
+        <p><span class="label">Time:</span> ${escapeHtml(timeAgo)}</p>
+        ${blameData.prNumber ? `<p><span class="label">PR:</span> #${prNumber}</p>` : ''}
     </div>
     <div class="commit-message">
         <div class="label">Message:</div>
-        ${blameData.summary}
+        ${summary}
     </div>
 </body>
 </html>`;
@@ -258,4 +270,4 @@ function deactivate() {
   cleanup();
 }
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, escapeHtml, getCommitDetailsContent };

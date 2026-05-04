@@ -18,7 +18,7 @@ const GIT_TIMEOUT_MS = 5000;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_FILE_LINES = 50000;
 
-const PREFETCH_LINE_RADIUS = 5;
+const PREFETCH_LINE_RADIUS = 2;
 
 const STATUS_STATES = {
   DISABLED: { icon: '$(eye-closed)', priority: 1 },

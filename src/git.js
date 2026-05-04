@@ -1,27 +1,55 @@
 const vscode = require('vscode');
 const path = require('path');
-const { LRUCache } = require('./utils');
+const { findGitRoot, LRUCache } = require('./utils');
 const { CACHE_MAX_SIZE, GIT_TIMEOUT_MS } = require('./constants');
 const { execFile } = require('child_process');
 
 const userCache = new LRUCache(CACHE_MAX_SIZE);
 const fileCache = new LRUCache(CACHE_MAX_SIZE);
 
-function blameLine(file, line, callback) {
-  try {
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(
-      vscode.Uri.file(file)
-    );
-    if (!workspaceFolder) {
-      callback(null, {
+function getGitContext(file) {
+  const gitRoot = findGitRoot(file);
+  if (!gitRoot) {
+    return null;
+  }
+
+  return {
+    cwd: gitRoot,
+    relativePath: path.relative(gitRoot, file),
+  };
+}
+
+function getGitContextOrError(file) {
+  const context = getGitContext(file);
+  if (context) {
+    return { context, error: null };
+  }
+
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+    vscode.Uri.file(file)
+  );
+  const error = workspaceFolder
+    ? {
+        type: 'NOT_GIT_REPO',
+        message: 'Directory is not a git repository',
+      }
+    : {
         type: 'NOT_GIT_REPO',
         message: 'File is not in a workspace folder',
-      });
+      };
+
+  return { context: null, error };
+}
+
+function blameLine(file, line, callback) {
+  try {
+    const { context, error } = getGitContextOrError(file);
+    if (error) {
+      callback(null, error);
       return;
     }
 
-    const cwd = workspaceFolder.uri.fsPath;
-    const relativePath = path.relative(cwd, file);
+    const { cwd, relativePath } = context;
 
     execFile(
       'git',
@@ -210,21 +238,15 @@ function getFileLastCommit(file, callback) {
   }
 
   try {
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(
-      vscode.Uri.file(file)
-    );
-    if (!workspaceFolder) {
-      const error = {
-        type: 'NOT_GIT_REPO',
-        message: 'File is not in a workspace folder',
-      };
+    const gitContext = getGitContextOrError(file);
+    if (gitContext.error) {
+      const error = gitContext.error;
       fileCache.set(cacheKey, { data: null, error });
       callback(null, error);
       return;
     }
 
-    const cwd = workspaceFolder.uri.fsPath;
-    const relativePath = path.relative(cwd, file);
+    const { cwd, relativePath } = gitContext.context;
 
     execFile(
       'git',

@@ -9,9 +9,9 @@ node_modules
 package-lock.json
 *.log
 
-
 # Testing
 test/**
+scripts/**
 .nyc_output
 coverage
 .vscode-test/**

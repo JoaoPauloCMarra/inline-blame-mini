@@ -10,11 +10,27 @@ const {
 
 let lastActiveEditor = null;
 let lastLine = -1;
-let lastCursorMoveTime = 0;
 
 function hookEvents() {
+  const refreshIfActiveDocument = document => {
+    const currentEditor = vscode.window.activeTextEditor;
+    if (currentEditor && currentEditor.document === document) {
+      refresh();
+    }
+  };
+
+  const refreshAfterSelectionChange = debounce(
+    refreshIfActiveDocument,
+    DEBOUNCE_DELAY
+  );
+  const refreshAfterDocumentChange = debounce(
+    refreshIfActiveDocument,
+    CHANGE_DEBOUNCE_DELAY
+  );
+
   const onEditor = vscode.window.onDidChangeActiveTextEditor(editor => {
     lastActiveEditor = editor;
+    lastLine = editor ? editor.selection.active.line : -1;
     if (editor) {
       refresh();
     } else {
@@ -34,25 +50,7 @@ function hookEvents() {
       const currentLine = event.textEditor.selection.active.line;
       if (currentLine !== lastLine) {
         lastLine = currentLine;
-
-        const now = Date.now();
-        const timeSinceLastMove = now - lastCursorMoveTime;
-        lastCursorMoveTime = now;
-
-        const isSlowMovement = timeSinceLastMove > 200;
-        const dynamicDelay = isSlowMovement
-          ? DEBOUNCE_DELAY / 2
-          : DEBOUNCE_DELAY;
-
-        debounce(() => {
-          const currentEditor = vscode.window.activeTextEditor;
-          if (
-            currentEditor &&
-            currentEditor.document === event.textEditor.document
-          ) {
-            refresh();
-          }
-        }, dynamicDelay)();
+        refreshAfterSelectionChange(event.textEditor.document);
       }
     }, DEBOUNCE_DELAY)
   );
@@ -81,12 +79,7 @@ function hookEvents() {
         });
 
         if (changeAffectsCurrentLine) {
-          debounce(() => {
-            const currentEditor = vscode.window.activeTextEditor;
-            if (currentEditor && currentEditor.document === event.document) {
-              refresh();
-            }
-          }, CHANGE_DEBOUNCE_DELAY)();
+          refreshAfterDocumentChange(event.document);
         }
       }
     }

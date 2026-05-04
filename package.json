@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/JoaoPauloCMarra/inline-blame-mini#readme",
   "engines": {
-    "vscode": "^1.100.0",
+    "vscode": "^1.96.0",
     "node": ">=18.0.0"
   },
   "activationEvents": [
@@ -153,6 +153,8 @@
   },
   "scripts": {
     "lint": "bunx eslint .",
+    "test": "bun test",
+    "test:extension": "bun scripts/run-extension-tests.js",
     "lint:fix": "bunx eslint . --fix",
     "prettier": "bunx prettier --write .",
     "format": "bun run lint:fix && bun run prettier",
@@ -165,12 +167,13 @@
     "vscode.git"
   ],
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@types/vscode": "^1.100.0",
-    "@vscode/vsce": "^3.7.1",
-    "eslint": "^9.39.1",
+    "@eslint/js": "^9.39.4",
+    "@types/vscode": "1.96.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.1",
+    "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
-    "prettier": "^3.7.4"
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.3"
   }
 }

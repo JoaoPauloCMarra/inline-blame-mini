@@ -38,6 +38,7 @@ module.exports = [
   {
     ignores: [
       'node_modules/',
+      '.vscode-test/',
       'out/',
       '*.vsix',
       '.vscode/',
