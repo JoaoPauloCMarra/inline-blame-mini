@@ -31,6 +31,8 @@ const {
 
 const blameCache = new LRUCache(CACHE_MAX_SIZE);
 const repoCache = new LRUCache(CACHE_MAX_SIZE);
+const inFlightBlames = new Map();
+let cacheGeneration = 0;
 let lastProcessedFile = null;
 let lastProcessedLine = null;
 let lastEditor = null;
@@ -47,6 +49,49 @@ function getGitRoot(file) {
     if (CACHE_ENABLED) repoCache.set(file, gitRoot);
   }
   return gitRoot;
+}
+
+function isCurrentEditorRequest(editor, file, currentLine, documentVersion) {
+  const activeEditor = vscode.window.activeTextEditor;
+  return (
+    activeEditor === editor &&
+    editor.document.fileName === file &&
+    editor.document.version === documentVersion &&
+    editor.selection.active.line + 1 === currentLine
+  );
+}
+
+function requestBlame(file, line, documentVersion, callback) {
+  const cacheKey = `${file}:${line}:${documentVersion}`;
+  const cachedBlame = CACHE_ENABLED ? blameCache.get(cacheKey) : undefined;
+
+  if (cachedBlame) {
+    callback(cachedBlame.data, cachedBlame.error);
+    return;
+  }
+
+  const pendingCallbacks = inFlightBlames.get(cacheKey);
+  if (pendingCallbacks) {
+    pendingCallbacks.push(callback);
+    return;
+  }
+
+  inFlightBlames.set(cacheKey, [callback]);
+  const requestGeneration = cacheGeneration;
+
+  blameLine(file, line, (blameData, error) => {
+    if (requestGeneration !== cacheGeneration) {
+      inFlightBlames.delete(cacheKey);
+      return;
+    }
+
+    if (CACHE_ENABLED) blameCache.set(cacheKey, { data: blameData, error });
+
+    const callbacks = inFlightBlames.get(cacheKey) || [];
+    inFlightBlames.delete(cacheKey);
+
+    callbacks.forEach(pendingCallback => pendingCallback(blameData, error));
+  });
 }
 
 function shouldSkipProcessing(editor, file, currentLine) {
@@ -172,23 +217,25 @@ function processLine(editor, file, currentLine, updateStatusBar = false) {
 
   if (!getGitRoot(file)) return;
 
-  const cacheKey = `${file}:${currentLine}:${editor.document.version}`;
+  const documentVersion = editor.document.version;
+  const cacheKey = `${file}:${currentLine}:${documentVersion}`;
   const cachedBlame = CACHE_ENABLED ? blameCache.get(cacheKey) : undefined;
 
   if (cachedBlame) {
     handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar);
-    // Smart prefetch: load nearby lines in background
-    smartPrefetch(editor, file, currentLine, editor.document.version);
+    smartPrefetch(editor, file, currentLine, documentVersion);
     return;
   }
 
-  blameLine(file, currentLine, (blameData, error) => {
-    if (CACHE_ENABLED) blameCache.set(cacheKey, { data: blameData, error });
+  requestBlame(file, currentLine, documentVersion, (blameData, error) => {
+    if (!isCurrentEditorRequest(editor, file, currentLine, documentVersion)) {
+      return;
+    }
+
     handleBlameResult(blameData, error, editor, currentLine, updateStatusBar);
 
-    // Smart prefetch: load nearby lines in background
     if (!error && blameData) {
-      smartPrefetch(editor, file, currentLine, editor.document.version);
+      smartPrefetch(editor, file, currentLine, documentVersion);
     }
   });
 }
@@ -207,11 +254,7 @@ function smartPrefetch(editor, file, currentLine, documentVersion) {
       const line = editor.document.lineAt(lineIndex);
 
       if (!(IGNORE_EMPTY_LINES && line.text.trim() === '')) {
-        blameLine(file, prefetchLine, (blameData, error) => {
-          if (CACHE_ENABLED) {
-            blameCache.set(prefetchCacheKey, { data: blameData, error });
-          }
-        });
+        requestBlame(file, prefetchLine, documentVersion, () => {});
       }
     }
   }
@@ -301,8 +344,10 @@ function displayBlameInfo(editor, currentLine, blameData) {
 }
 
 function clearCaches() {
+  cacheGeneration += 1;
   blameCache.clear();
   repoCache.clear();
+  inFlightBlames.clear();
   lastProcessedFile = null;
   lastProcessedLine = null;
   lastEditor = null;
@@ -318,9 +363,12 @@ function updateCacheSettings() {
   if (!CACHE_ENABLED) clearCaches();
 }
 
-function toggleEnabled() {
+async function toggleEnabled() {
   const currentState = config.isEnabled();
-  config.update('enabled', !currentState);
+  const nextState = !currentState;
+
+  await config.update('enabled', nextState);
+
   if (!currentState) {
     refresh();
   } else {
@@ -329,7 +377,7 @@ function toggleEnabled() {
       clearDecorations(editor);
     }
   }
-  return !currentState;
+  return nextState;
 }
 
 module.exports = {

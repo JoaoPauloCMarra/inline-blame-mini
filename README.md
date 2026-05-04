@@ -1,156 +1,128 @@
 # Inline Blame Mini
 
-[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
-[![VS Code](https://img.shields.io/badge/VS_Code-1.105+-blue.svg)](https://code.visualstudio.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.1.5-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
+[![VS Code](https://img.shields.io/badge/VS_Code-1.96+-blue.svg)](https://code.visualstudio.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
-> 🚀 **Lightning-fast git blame information** - See who changed what, when, right in your editor!
+Lightweight inline Git blame for VS Code. It shows the author, relative time, and commit summary for the line under your cursor without opening a separate blame view.
 
-A minimal, performant VS Code extension that shows git blame information **inline** for the current cursor line. No more switching tabs or running terminal commands!
+![Inline blame shown at the end of a code line](screenshots/blame-line.png)
 
-## ✨ Features
+## Features
 
-### 🎯 **Smart & Fast**
+- Inline blame for the active cursor line
+- End-of-line, above-line, or below-line display modes
+- Status bar summary for the active file
+- Commit detail panel from the command palette
+- Configurable text format, color, font style, font size, margin, and file filters
+- Bounded caches, debounced editor events, Git timeouts, and stale-result guards
+- Nested Git repository support inside larger VS Code workspaces
 
-- ⚡ **Instant blame** - Shows blame info as you move your cursor
-- 🧠 **Intelligent caching** - Remembers blame data for lightning-fast subsequent views
-- 🎭 **Smart display** - Shows "You" for your own commits
-- 🚀 **Optimized performance** - Debounced updates, timeout protection, and memory-efficient caching
+## Install
 
-### 🎨 **Beautiful & Customizable**
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini), or build a local VSIX:
 
-- 🎨 **Subtle styling** - Non-intrusive gray text that blends with your theme
-- 📍 **Flexible positioning** - End-of-line, above-line, or below-line
-- 🎛️ **Full customization** - Colors, fonts, margins, and formats
-- 🌙 **Theme aware** - Works beautifully with light and dark themes
+```sh
+bun install
+bun run package
+```
 
-### 🔧 **Powerful & Reliable**
+Then install the generated `.vsix` from VS Code with `Extensions: Install from VSIX...`.
 
-- 📊 **Status bar integration** - Quick overview at a glance
-- 📋 **Detailed commit view** - Click to see full commit details
-- 🛠️ **Comprehensive error handling** - Helpful troubleshooting guides
-- 🔍 **File filtering** - Include/exclude patterns for precise control
+## Requirements
 
-## 📸 Screenshots
+- VS Code `1.96.0` or newer
+- Git available on `PATH`
+- A saved file tracked by Git
 
-### ✨ Inline Blame in Action
+Untitled files, ignored files, untracked files, empty lines, very large files, and files outside a Git repository are skipped.
 
-![Inline Blame Display](screenshots/blame-line.png)
+## Usage
 
-_Clean, contextual blame information appears instantly as you move your cursor_
+1. Open a Git-tracked file.
+2. Move the cursor to a non-empty line.
+3. Inline blame appears using the configured format.
 
-### 📊 Status Bar Overview
+The default format is:
 
-![Status Bar Information](screenshots/statusbar.png)
+```text
+{author}, {timeAgo} • {summary}
+```
 
-_Quick status bar summary with author and time information_
+Available format tokens:
 
-### 📋 Detailed Commit Information
+- `{author}`
+- `{timeAgo}`
+- `{summary}`
+- `{hash}`
+- `{prNumber}`
+- `{pr}`
 
-_Click on any blame info to view comprehensive commit details including author, time, hash, and full commit message_
+## Commands
 
-## 🚀 Quick Start
+| Command                                         | Description                                      |
+| ----------------------------------------------- | ------------------------------------------------ |
+| `Inline Blame Mini: Toggle Inline Blame`        | Enable or disable inline blame                   |
+| `Inline Blame Mini: Refresh Blame Information`  | Refresh blame for the active line                |
+| `Inline Blame Mini: Show Commit Details`        | Open the commit detail panel for the active line |
+| `Inline Blame Mini: Show Troubleshooting Guide` | Open troubleshooting help                        |
+| `Inline Blame Mini: Open Settings`              | Open extension settings                          |
 
-1. **Install** from VS Code Marketplace
-2. **Open** any git-tracked file
-3. **Move your cursor** - blame info appears instantly!
-4. **Click** on blame text for detailed commit view
-
-## ⚙️ Configuration
-
-### Essential Settings
+## Configuration
 
 ```json
 {
   "inline-blame-mini.enabled": true,
-  "inline-blame-mini.showOnlyWhenChanged": true,
-  "inline-blame-mini.statusBar.enabled": true
-}
-```
-
-### Advanced Customization
-
-```json
-{
   "inline-blame-mini.format": "{author}, {timeAgo} • {summary}",
+  "inline-blame-mini.summaryMaxLength": 60,
+  "inline-blame-mini.showOnlyWhenChanged": true,
   "inline-blame-mini.style.position": "end-of-line",
   "inline-blame-mini.style.color": "rgba(136, 136, 136, 0.7)",
-  "inline-blame-mini.excludeFiles": [],
-  "inline-blame-mini.includeFiles": ["**/*"]
+  "inline-blame-mini.statusBar.enabled": true,
+  "inline-blame-mini.includeFiles": ["**/*"],
+  "inline-blame-mini.excludeFiles": []
 }
 ```
 
-## 🎮 Commands
+Display positions:
 
-| Command                      | Description                | Shortcut |
-| ---------------------------- | -------------------------- | -------- |
-| `Toggle Inline Blame`        | Enable/disable extension   | -        |
-| `Refresh Blame Information`  | Manual refresh             | -        |
-| `Show Commit Details`        | Open detailed commit panel | -        |
-| `Show Troubleshooting Guide` | Get help with issues       | -        |
-| `Open Settings`              | Quick access to settings   | -        |
+- `end-of-line`
+- `above-line`
+- `below-line`
 
-## 🏆 Why Choose Inline Blame Mini?
+## Troubleshooting
 
-### ⚡ **Performance First**
+| Symptom                 | Check                                                                  |
+| ----------------------- | ---------------------------------------------------------------------- |
+| No blame appears        | Confirm the file is saved, Git-tracked, and inside a repository        |
+| Git error in status bar | Confirm `git --version` works in your terminal                         |
+| File is skipped         | Check `includeFiles`, `excludeFiles`, file size, and line count        |
+| Blame looks stale       | Save the file, then run `Inline Blame Mini: Refresh Blame Information` |
 
-- **500x faster** than full-file blame operations
-- **Smart caching** prevents redundant git calls
-- **Timeout protection** prevents hanging on large repos
-- **Memory efficient** with automatic cleanup
+You can also run `Inline Blame Mini: Show Troubleshooting Guide` from the command palette.
 
-### 🎯 **Developer Experience**
+## Development
 
-- **Zero configuration** - works out of the box
-- **Non-intrusive** - doesn't interfere with your workflow
-- **Keyboard friendly** - all features accessible via commands
-- **Error resilient** - helpful guidance when things go wrong
+```sh
+bun install
+bun test
+bun run lint
+bun run test:extension
+bun run package
+```
 
-### 🔧 **Enterprise Ready**
+The extension smoke test launches a VS Code extension host against a temporary nested Git repository. The generated `.vscode-test` directory is ignored by linting and packaging.
 
-- **Large repo support** - handles massive codebases gracefully
-- **File size limits** - automatically skips problematic files
-- **Git compatibility** - works with all git workflows
-- **VS Code native** - follows platform conventions
+## Packaging
 
-## 🐛 Troubleshooting
+`bun run package` runs the prepublish checks and creates a VSIX. The packaged extension includes only runtime files:
 
-### Common Issues & Solutions
+- `LICENSE.md`
+- `icon.png`
+- `package.json`
+- `README.md`
+- `src/**`
 
-| Issue                       | Solution                                                      |
-| --------------------------- | ------------------------------------------------------------- |
-| 🚫 **Git not available**    | Install Git from [git-scm.com](https://git-scm.com/downloads) |
-| 📁 **Not a git repository** | Run `git init` in your project folder                         |
-| 🔍 **File not tracked**     | Run `git add filename.ext` to track the file                  |
-| ⏱️ **Operation timed out**  | Repository may be too large - check network connection        |
-| 💾 **Unsaved changes**      | Save the file to see accurate blame information               |
+## License
 
-### Get Help
-
-- **Command Palette** → `Inline Blame Mini: Show Troubleshooting Guide`
-- **Status Bar** → Click error/warning messages for guidance
-- **GitHub Issues** → [Report bugs or request features](https://github.com/JoaoPauloCMarra/inline-blame-mini/issues)
-
-## 📋 Requirements
-
-- **VS Code**: 1.105+
-- **Git**: Any recent version (must be in PATH)
-- **Repository**: File must be saved and git-tracked
-
-## 🤝 Contributing
-
-Found a bug or have a feature request? We'd love to hear from you!
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/JoaoPauloCMarra/inline-blame-mini/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/JoaoPauloCMarra/inline-blame-mini/discussions)
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/JoaoPauloCMarra/inline-blame-mini/wiki)
-
-## 📄 License
-
-**MIT License** - Free for personal and commercial use
-
----
-
-**Made with ❤️ for developers who care about productivity**
-
-[⭐ Star on GitHub](https://github.com/JoaoPauloCMarra/inline-blame-mini) • [📦 Install from Marketplace](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
+[MIT](LICENSE.md)
