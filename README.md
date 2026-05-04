@@ -1,6 +1,6 @@
 # Inline Blame Mini
 
-[![Version](https://img.shields.io/badge/version-0.1.5-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
+[![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
 [![VS Code](https://img.shields.io/badge/VS_Code-1.96+-blue.svg)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
@@ -107,15 +107,16 @@ You can also run `Inline Blame Mini: Show Troubleshooting Guide` from the comman
 bun install
 bun test
 bun run lint
+bun run format:check
 bun run test:extension
-bun run package
+bun run release:check
 ```
 
 The extension smoke test launches a VS Code extension host against a temporary nested Git repository. The generated `.vscode-test` directory is ignored by linting and packaging.
 
 ## Packaging
 
-`bun run package` runs the prepublish checks and creates a VSIX. The packaged extension includes only runtime files:
+`bun run release:check` runs tests, lint, formatting checks, packages the VSIX, and installs it through a temporary VS Code profile. After publishing, run `bun run verify:marketplace-install` before announcing the release. The packaged extension includes only runtime files:
 
 - `LICENSE.md`
 - `icon.png`

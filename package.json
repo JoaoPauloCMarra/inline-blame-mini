@@ -2,7 +2,7 @@
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
   "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -156,12 +156,15 @@
     "test": "bun test",
     "test:extension": "bun scripts/run-extension-tests.js",
     "lint:fix": "bunx eslint . --fix",
-    "prettier": "bunx prettier --write .",
-    "format": "bun run lint:fix && bun run prettier",
-    "package": "vsce package",
+    "format:check": "bunx prettier --check .",
+    "format": "bun run lint:fix && bunx prettier --write .",
+    "package": "bunx vsce package",
     "build": "bun run package",
-    "vscode:prepublish": "bun run lint && bun run format",
-    "publish": "vsce publish"
+    "verify:package-install": "bun scripts/verify-extension-install.js local",
+    "verify:marketplace-install": "bun scripts/verify-extension-install.js marketplace",
+    "release:check": "bun test && bun run test:extension && bun run lint && bun run format:check && bun run package && bun run verify:package-install",
+    "vscode:prepublish": "bun run lint && bun run format:check",
+    "publish": "bunx vsce publish"
   },
   "extensionDependencies": [
     "vscode.git"
