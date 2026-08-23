@@ -1,5 +1,6 @@
 const vscode = require('vscode');
-const { checkGitAvailability } = require('./git');
+const { blameRange, checkGitAvailability } = require('./git');
+const { relativeTime } = require('./utils');
 const {
   createDecorationType,
   createStatusBar,
@@ -19,8 +20,9 @@ function escapeHtml(value) {
 }
 
 function activate(context) {
-  checkGitAvailability(available => {
+  checkGitAvailability().then(available => {
     setGitAvailability(available);
+    if (available) refresh();
   });
 
   const decorationType = createDecorationType();
@@ -29,9 +31,7 @@ function activate(context) {
 
   const helpCommand = vscode.commands.registerCommand(
     'inline-blame-mini.showHelp',
-    () => {
-      showHelpPanel();
-    }
+    showHelpPanel
   );
 
   const toggleCommand = vscode.commands.registerCommand(
@@ -47,27 +47,24 @@ function activate(context) {
 
   const refreshCommand = vscode.commands.registerCommand(
     'inline-blame-mini.refresh',
-    () => {
-      refresh();
+    async () => {
+      await refresh();
       vscode.window.showInformationMessage('Blame information refreshed');
     }
   );
 
   const showCommitDetailsCommand = vscode.commands.registerCommand(
     'inline-blame-mini.showCommitDetails',
-    () => {
-      showCommitDetailsPanel();
-    }
+    showCommitDetailsPanel
   );
 
   const openSettingsCommand = vscode.commands.registerCommand(
     'inline-blame-mini.openSettings',
-    () => {
+    () =>
       vscode.commands.executeCommand(
         'workbench.action.openSettings',
         'inline-blame-mini'
-      );
-    }
+      )
   );
 
   context.subscriptions.push(
@@ -92,7 +89,6 @@ function getHelpContent() {
         'Restart VS Code after installing Git',
         'Make sure Git is in your system PATH',
         'Run <code>git --version</code> in terminal to verify installation',
-        "Ensure VS Code's built-in Git extension is enabled",
       ],
     },
     {
@@ -119,8 +115,7 @@ function getHelpContent() {
       solutions: [
         'Try with a smaller file',
         'Check if your repository is very large',
-        'Ensure stable network connection (for remote repositories)',
-        'Consider using Git LFS for large files',
+        'Run <code>git blame</code> in the terminal to check repository performance',
       ],
     },
     {
@@ -138,7 +133,6 @@ function getHelpContent() {
       solutions: [
         '<a href="https://github.com/JoaoPauloCMarra/inline-blame-mini/issues">Report an issue on GitHub</a>',
         '<a href="https://github.com/JoaoPauloCMarra/inline-blame-mini#readme">Read the documentation</a>',
-        "Check VS Code's Git extension is enabled",
         'Try reloading the window (Ctrl/Cmd + Shift + P → "Reload Window")',
       ],
     },
@@ -188,31 +182,26 @@ function showHelpPanel() {
     vscode.ViewColumn.One,
     {
       enableScripts: false,
-      retainContextWhenHidden: true,
     }
   );
 
   panel.webview.html = getHelpContent();
 }
 
-function showCommitDetailsPanel() {
+async function showCommitDetailsPanel() {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showWarningMessage('No active editor');
     return;
   }
 
-  const { blameLine } = require('./git');
   const currentLine = editor.selection.active.line + 1;
   const file = editor.document.fileName;
 
-  blameLine(file, currentLine, (blameData, error) => {
-    if (error || !blameData) {
-      vscode.window.showErrorMessage(
-        'Could not get blame information for current line'
-      );
-      return;
-    }
+  try {
+    const blames = await blameRange(file, currentLine, currentLine);
+    const blameData = blames.get(currentLine);
+    if (!blameData) throw new Error('No blame data');
 
     const panel = vscode.window.createWebviewPanel(
       'inlineBlameCommitDetails',
@@ -220,21 +209,22 @@ function showCommitDetailsPanel() {
       vscode.ViewColumn.One,
       {
         enableScripts: false,
-        retainContextWhenHidden: true,
       }
     );
 
     panel.webview.html = getCommitDetailsContent(blameData);
-  });
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      'Could not get blame information for current line'
+    );
+  }
 }
 
 function getCommitDetailsContent(blameData) {
-  const { relativeTime } = require('./utils');
   const timeAgo = relativeTime(blameData.time * 1000);
   const hash = escapeHtml(blameData.hash);
   const author = escapeHtml(blameData.author);
   const summary = escapeHtml(blameData.summary);
-  const prNumber = escapeHtml(blameData.prNumber);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -256,7 +246,6 @@ function getCommitDetailsContent(blameData) {
         <p><span class="label">Hash:</span> <span class="commit-hash">${hash}</span></p>
         <p><span class="label">Author:</span> ${author}</p>
         <p><span class="label">Time:</span> ${escapeHtml(timeAgo)}</p>
-        ${blameData.prNumber ? `<p><span class="label">PR:</span> #${prNumber}</p>` : ''}
     </div>
     <div class="commit-message">
         <div class="label">Message:</div>

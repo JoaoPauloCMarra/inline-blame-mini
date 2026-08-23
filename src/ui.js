@@ -1,10 +1,9 @@
 const vscode = require('vscode');
 const config = require('./config');
-const { STATUS_STATES } = require('./constants');
+const { STATUS_ICONS } = require('./constants');
 
 let decorationType;
 let statusBar;
-let disposables = [];
 let gitAvailable = true;
 
 let codeLensEmitter = null;
@@ -34,7 +33,7 @@ function createStatusBar() {
 }
 
 function ensureCodeLensProvider() {
-  if (codeLensRegistration) return codeLensRegistration;
+  if (codeLensRegistration) return;
 
   codeLensEmitter = new vscode.EventEmitter();
 
@@ -70,8 +69,6 @@ function ensureCodeLensProvider() {
     { scheme: 'file' },
     provider
   );
-
-  return codeLensRegistration;
 }
 
 function addDecoration(editor, currentLine, inlineText) {
@@ -120,14 +117,12 @@ function setGitAvailability(available) {
 
 function setStatusBar(text, tooltip, state = 'INFO') {
   if (statusBar) {
-    const stateConfig = STATUS_STATES[state] || STATUS_STATES.INFO;
-    statusBar.text = `${stateConfig.icon} ${text}`;
+    const icon = STATUS_ICONS[state] || STATUS_ICONS.INFO;
+    statusBar.text = `${icon} ${text}`;
     statusBar.tooltip = tooltip;
 
     if (state === 'ERROR' || state === 'WARNING') {
       statusBar.command = 'inline-blame-mini.showHelp';
-    } else if (state === 'SUCCESS') {
-      statusBar.command = 'inline-blame-mini.toggle';
     } else {
       statusBar.command = undefined;
     }
@@ -140,36 +135,6 @@ function setFileStatusBar(text, tooltip) {
     statusBar.tooltip = tooltip;
     statusBar.command = undefined;
   }
-}
-
-function showMessage(type, title, message, actions = [], callback = null) {
-  const options = { modal: false, detail: message };
-  const method =
-    type === 'error'
-      ? 'showErrorMessage'
-      : type === 'warning'
-        ? 'showWarningMessage'
-        : 'showInformationMessage';
-
-  if (actions.length > 0) {
-    vscode.window[method](title, options, ...actions).then(selection => {
-      if (callback) callback(selection);
-    });
-  } else {
-    vscode.window[method](title, options);
-  }
-}
-
-function showErrorMessage(title, message, actions = [], callback = null) {
-  showMessage('error', title, message, actions, callback);
-}
-
-function showWarningMessage(title, message, actions = [], callback = null) {
-  showMessage('warning', title, message, actions, callback);
-}
-
-function showInfoMessage(title, message, actions = [], callback = null) {
-  showMessage('info', title, message, actions, callback);
 }
 
 function clearDecorations(editor) {
@@ -189,15 +154,6 @@ function cleanup() {
     editor.setDecorations(decorationType, []);
   }
 
-  if (disposables && disposables.length) {
-    disposables.forEach(disposable => {
-      if (disposable && typeof disposable.dispose === 'function') {
-        disposable.dispose();
-      }
-    });
-    disposables = [];
-  }
-
   if (statusBar) {
     statusBar.dispose();
     statusBar = null;
@@ -211,6 +167,11 @@ function cleanup() {
   if (codeLensRegistration) {
     codeLensRegistration.dispose();
     codeLensRegistration = null;
+  }
+
+  if (codeLensEmitter) {
+    codeLensEmitter.dispose();
+    codeLensEmitter = null;
   }
 }
 
@@ -230,9 +191,5 @@ module.exports = {
   setFileStatusBar,
   clearDecorations,
   getGitAvailability,
-  showErrorMessage,
-  showWarningMessage,
-  showInfoMessage,
   cleanup,
-  ensureCodeLensProvider,
 };

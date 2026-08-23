@@ -1,8 +1,10 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { runTests } = require('@vscode/test-electron');
+
+const version = process.argv[2] || '1.96.0';
 
 function createRepoFixture() {
   const workspaceRoot = fs.mkdtempSync(
@@ -34,13 +36,18 @@ async function main() {
   const { filePath, workspaceRoot } = createRepoFixture();
 
   try {
+    process.stdout.write(
+      `Running extension smoke test with VS Code ${version}\n`
+    );
     await runTests({
+      version,
+      timeout: 30_000,
       extensionDevelopmentPath: path.resolve(__dirname, '..'),
       extensionTestsPath: path.resolve(__dirname, '../test/extension-smoke.js'),
       extensionTestsEnv: {
         INLINE_BLAME_TEST_FILE: filePath,
       },
-      launchArgs: [workspaceRoot, '--disable-extensions'],
+      launchArgs: [workspaceRoot, '--disable-extensions', '--disable-updates'],
     });
   } finally {
     fs.rmSync(workspaceRoot, { recursive: true, force: true });

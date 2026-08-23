@@ -1,15 +1,11 @@
-const path = require('path');
-const fs = require('fs');
+const fs = require('node:fs');
+const path = require('node:path');
 const { DEFAULT_GIT_ROOT_CACHE_SIZE } = require('./constants');
 
 class LRUCache {
   constructor(limit = 100) {
     this.limit = Math.max(1, limit);
     this.map = new Map();
-  }
-
-  get size() {
-    return this.map.size;
   }
 
   get(key) {
@@ -27,25 +23,8 @@ class LRUCache {
     return this;
   }
 
-  has(key) {
-    return this.map.has(key);
-  }
-
-  delete(key) {
-    return this.map.delete(key);
-  }
-
   clear() {
     this.map.clear();
-  }
-
-  keys() {
-    return this.map.keys();
-  }
-
-  setLimit(newLimit) {
-    this.limit = Math.max(1, newLimit);
-    this.#evict();
   }
 
   #evict() {
@@ -121,39 +100,27 @@ function findGitRoot(filePath) {
       currentDir = parentDir;
     }
 
-    gitRootCache.set(absoluteFilePath, result);
+    if (result) {
+      gitRootCache.set(absoluteFilePath, result);
+    }
 
     return result;
   } catch (error) {
-    gitRootCache.set(absoluteFilePath, null);
     return null;
   }
 }
 
-function validateLinePosition(editor, line) {
-  if (!editor || !editor.document) {
-    return { valid: false, error: 'No active editor' };
-  }
-
+function isValidLinePosition(editor, line) {
+  if (!editor || !editor.document) return false;
   const lineIndex = line - 1;
-  if (lineIndex < 0) {
-    return { valid: false, error: 'Line number cannot be negative' };
-  }
-
-  if (lineIndex >= editor.document.lineCount) {
-    return { valid: false, error: 'Line number exceeds document length' };
-  }
-
-  return { valid: true };
+  return lineIndex >= 0 && lineIndex < editor.document.lineCount;
 }
 
 module.exports = {
   relativeTime,
   trimSummary,
   debounce,
-  isGitRepository,
   findGitRoot,
-  validateLinePosition,
+  isValidLinePosition,
   LRUCache,
-  setGitRootCacheLimit: limit => gitRootCache.setLimit(limit),
 };

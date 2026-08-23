@@ -2,16 +2,11 @@ const vscode = require('vscode');
 const {
   relativeTime,
   trimSummary,
-  validateLinePosition,
+  isValidLinePosition,
   findGitRoot,
   LRUCache,
-  setGitRootCacheLimit,
 } = require('./utils');
-const {
-  blameLine,
-  getFileLastCommit,
-  updateCacheSettings: updateGitCaches,
-} = require('./git');
+const { blameRange, getFileLastCommit } = require('./git');
 const {
   setStatusBar,
   addDecoration,
@@ -21,7 +16,6 @@ const {
 } = require('./ui');
 const config = require('./config');
 const {
-  CACHE_ENABLED,
   CACHE_MAX_SIZE,
   IGNORE_EMPTY_LINES,
   MAX_FILE_SIZE_BYTES,
@@ -30,25 +24,13 @@ const {
 } = require('./constants');
 
 const blameCache = new LRUCache(CACHE_MAX_SIZE);
-const repoCache = new LRUCache(CACHE_MAX_SIZE);
 const inFlightBlames = new Map();
+const fileSizeCache = new WeakMap();
 let cacheGeneration = 0;
-let lastProcessedFile = null;
-let lastProcessedLine = null;
-let lastEditor = null;
 let lastStatusBarFile = null;
 
 function clearStatusBar() {
   setFileStatusBar('', '');
-}
-
-function getGitRoot(file) {
-  let gitRoot = repoCache.get(file);
-  if (gitRoot === undefined) {
-    gitRoot = findGitRoot(file);
-    if (CACHE_ENABLED) repoCache.set(file, gitRoot);
-  }
-  return gitRoot;
 }
 
 function isCurrentEditorRequest(editor, file, currentLine, documentVersion) {
@@ -61,85 +43,88 @@ function isCurrentEditorRequest(editor, file, currentLine, documentVersion) {
   );
 }
 
-function requestBlame(file, line, documentVersion, callback) {
-  const cacheKey = `${file}:${line}:${documentVersion}`;
-  const cachedBlame = CACHE_ENABLED ? blameCache.get(cacheKey) : undefined;
+function getBlameCacheKey(file, line, documentVersion) {
+  return `${file}:${line}:${documentVersion}`;
+}
 
-  if (cachedBlame) {
-    callback(cachedBlame.data, cachedBlame.error);
-    return;
+function requestBlameRange(file, startLine, endLine, documentVersion) {
+  const currentKey = getBlameCacheKey(file, startLine, documentVersion);
+  const pendingRequest = inFlightBlames.get(currentKey);
+  if (pendingRequest) {
+    return pendingRequest.then(() => blameCache.get(currentKey));
   }
 
-  const pendingCallbacks = inFlightBlames.get(cacheKey);
-  if (pendingCallbacks) {
-    pendingCallbacks.push(callback);
-    return;
+  const cacheKeys = [];
+  for (let line = startLine; line <= endLine; line++) {
+    cacheKeys.push(getBlameCacheKey(file, line, documentVersion));
   }
 
-  inFlightBlames.set(cacheKey, [callback]);
   const requestGeneration = cacheGeneration;
+  const request = blameRange(file, startLine, endLine)
+    .then(blames => {
+      if (requestGeneration !== cacheGeneration) {
+        return;
+      }
 
-  blameLine(file, line, (blameData, error) => {
-    if (requestGeneration !== cacheGeneration) {
-      inFlightBlames.delete(cacheKey);
-      return;
-    }
+      for (let line = startLine; line <= endLine; line++) {
+        const cacheKey = getBlameCacheKey(file, line, documentVersion);
+        blameCache.set(cacheKey, {
+          data: blames.get(line) || null,
+          error: null,
+        });
+      }
+    })
+    .catch(error => {
+      if (requestGeneration !== cacheGeneration) {
+        return;
+      }
 
-    if (CACHE_ENABLED) blameCache.set(cacheKey, { data: blameData, error });
+      for (const cacheKey of cacheKeys) {
+        blameCache.set(cacheKey, { data: null, error });
+      }
+    })
+    .finally(() => {
+      for (const cacheKey of cacheKeys) {
+        if (inFlightBlames.get(cacheKey) === request) {
+          inFlightBlames.delete(cacheKey);
+        }
+      }
+    });
 
-    const callbacks = inFlightBlames.get(cacheKey) || [];
-    inFlightBlames.delete(cacheKey);
+  for (const cacheKey of cacheKeys) {
+    inFlightBlames.set(cacheKey, request);
+  }
 
-    callbacks.forEach(pendingCallback => pendingCallback(blameData, error));
-  });
+  return request.then(() => blameCache.get(currentKey));
 }
 
-function shouldSkipProcessing(editor, file, currentLine) {
-  return (
-    config.shouldShowOnlyWhenChanged() &&
-    lastEditor === editor &&
-    lastProcessedFile === file &&
-    lastProcessedLine === currentLine
-  );
-}
+async function isFileTooLarge(editor) {
+  if (editor.document.lineCount > MAX_FILE_LINES) {
+    return true;
+  }
 
-function isFileTooLarge(file, editor) {
+  const cached = fileSizeCache.get(editor.document);
+  if (cached && cached.version === editor.document.version) {
+    return cached.result;
+  }
+
   try {
-    const stats = require('fs').statSync(file);
-    if (stats.size > MAX_FILE_SIZE_BYTES) {
-      return true;
-    }
-    if (editor && editor.document.lineCount > MAX_FILE_LINES) {
-      return true;
-    }
+    const stats = await vscode.workspace.fs.stat(
+      vscode.Uri.file(editor.document.fileName)
+    );
+    const result = stats.size > MAX_FILE_SIZE_BYTES;
+    fileSizeCache.set(editor.document, {
+      version: editor.document.version,
+      result,
+    });
+    return result;
   } catch (error) {
     return false;
   }
-  return false;
 }
 
-function handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar) {
-  if (cachedBlame.error) {
-    if (updateStatusBar) handleBlameError(cachedBlame.error, editor);
-  } else if (cachedBlame.data) {
-    if (cachedBlame.data.isUncommitted) {
-      const inlineText = ` ${cachedBlame.data.summary}`;
-      addDecoration(editor, currentLine, inlineText);
-    } else {
-      displayBlameInfo(editor, currentLine, cachedBlame.data);
-    }
-  } else if (updateStatusBar) {
-    handleNoBlameData(editor);
-  }
-}
-
-function handleBlameResult(
-  blameData,
-  error,
-  editor,
-  currentLine,
-  updateStatusBar
-) {
+function handleBlameResult(result, editor, currentLine, updateStatusBar) {
+  const { data: blameData, error } = result || {};
   if (error) {
     if (updateStatusBar) handleBlameError(error, editor);
     return;
@@ -159,7 +144,7 @@ function handleBlameResult(
   displayBlameInfo(editor, currentLine, blameData);
 }
 
-function refresh() {
+async function refresh() {
   const editor = vscode.window.activeTextEditor;
   if (
     !editor ||
@@ -175,32 +160,21 @@ function refresh() {
   clearDecorations(editor);
   const file = editor.document.fileName;
   const currentLine = editor.selection.active.line + 1;
-  processLine(editor, file, currentLine, true);
+  await processLine(editor, file, currentLine, true);
 }
 
-function processLine(editor, file, currentLine, updateStatusBar = false) {
-  if (updateStatusBar) {
-    if (lastStatusBarFile !== file) {
-      lastStatusBarFile = file;
-      updateFileStatusBar(file);
-    }
-  }
-
+async function processLine(editor, file, currentLine, updateStatusBar = false) {
   if (!config.shouldProcessFile(file)) {
-    if (updateStatusBar) clearStatusBar();
+    if (updateStatusBar) {
+      lastStatusBarFile = null;
+      clearStatusBar();
+    }
     return;
   }
 
-  if (shouldSkipProcessing(editor, file, currentLine)) return;
+  if (!isValidLinePosition(editor, currentLine)) return;
 
-  lastEditor = editor;
-  lastProcessedFile = file;
-  lastProcessedLine = currentLine;
-
-  if (!validateLinePosition(editor, currentLine).valid) return;
-
-  if (isFileTooLarge(file, editor)) {
-    // Skip processing for very large files to maintain performance
+  if (await isFileTooLarge(editor)) {
     if (updateStatusBar) {
       setStatusBar(
         'File too large',
@@ -211,77 +185,64 @@ function processLine(editor, file, currentLine, updateStatusBar = false) {
     return;
   }
 
+  if (updateStatusBar && lastStatusBarFile !== file) {
+    lastStatusBarFile = file;
+    updateFileStatusBar(file);
+  }
+
   const lineIndex = currentLine - 1;
   const line = editor.document.lineAt(lineIndex);
   if (IGNORE_EMPTY_LINES && line.text.trim() === '') return;
 
-  if (!getGitRoot(file)) return;
+  if (!findGitRoot(file)) return;
 
   const documentVersion = editor.document.version;
-  const cacheKey = `${file}:${currentLine}:${documentVersion}`;
-  const cachedBlame = CACHE_ENABLED ? blameCache.get(cacheKey) : undefined;
+  const cacheKey = getBlameCacheKey(file, currentLine, documentVersion);
+  const cachedBlame = blameCache.get(cacheKey);
 
   if (cachedBlame) {
-    handleCachedBlame(cachedBlame, editor, currentLine, updateStatusBar);
-    smartPrefetch(editor, file, currentLine, documentVersion);
+    handleBlameResult(cachedBlame, editor, currentLine, updateStatusBar);
     return;
   }
 
-  requestBlame(file, currentLine, documentVersion, (blameData, error) => {
-    if (!isCurrentEditorRequest(editor, file, currentLine, documentVersion)) {
-      return;
-    }
+  const endLine = Math.min(
+    currentLine + PREFETCH_LINE_RADIUS,
+    editor.document.lineCount
+  );
+  const result = await requestBlameRange(
+    file,
+    currentLine,
+    endLine,
+    documentVersion
+  );
 
-    handleBlameResult(blameData, error, editor, currentLine, updateStatusBar);
-
-    if (!error && blameData) {
-      smartPrefetch(editor, file, currentLine, documentVersion);
-    }
-  });
-}
-
-function smartPrefetch(editor, file, currentLine, documentVersion) {
-  const radius = PREFETCH_LINE_RADIUS;
-  for (let offset = 1; offset <= radius; offset++) {
-    const prefetchLine = currentLine + offset;
-    const prefetchCacheKey = `${file}:${prefetchLine}:${documentVersion}`;
-
-    if (
-      !blameCache.has(prefetchCacheKey) &&
-      validateLinePosition(editor, prefetchLine).valid
-    ) {
-      const lineIndex = prefetchLine - 1;
-      const line = editor.document.lineAt(lineIndex);
-
-      if (!(IGNORE_EMPTY_LINES && line.text.trim() === '')) {
-        requestBlame(file, prefetchLine, documentVersion, () => {});
-      }
-    }
+  if (!isCurrentEditorRequest(editor, file, currentLine, documentVersion)) {
+    return;
   }
+
+  handleBlameResult(result, editor, currentLine, updateStatusBar);
 }
 
-function updateFileStatusBar(file) {
+async function updateFileStatusBar(file) {
   const statusBarConfig = config.getStatusBarConfig();
   if (!statusBarConfig.enabled) {
     clearStatusBar();
     return;
   }
 
-  getFileLastCommit(file, (fileData, error) => {
+  try {
+    const fileData = await getFileLastCommit(file);
     const currentEditor = vscode.window.activeTextEditor;
     if (!currentEditor || currentEditor.document.fileName !== file) {
-      return;
-    }
-
-    if (error || !fileData) {
-      clearStatusBar();
       return;
     }
 
     const rel = relativeTime(fileData.time * 1000);
     const statusText = `${fileData.author} (${rel})`;
     setFileStatusBar(statusText, `Last modified by ${fileData.author}`);
-  });
+  } catch (error) {
+    clearStatusBar();
+  }
 }
 
 function handleBlameError(error, editor) {
@@ -335,7 +296,6 @@ function displayBlameInfo(editor, currentLine, blameData) {
     timeAgo: rel,
     summary: summary,
     hash: blameData.hash,
-    prNumber: blameData.prNumber || '',
   };
 
   const inlineText = ` ${config.formatBlameText(formatData)}`;
@@ -346,21 +306,8 @@ function displayBlameInfo(editor, currentLine, blameData) {
 function clearCaches() {
   cacheGeneration += 1;
   blameCache.clear();
-  repoCache.clear();
   inFlightBlames.clear();
-  lastProcessedFile = null;
-  lastProcessedLine = null;
-  lastEditor = null;
   lastStatusBarFile = null;
-}
-
-function updateCacheSettings() {
-  const limit = CACHE_MAX_SIZE;
-  blameCache.setLimit(limit);
-  repoCache.setLimit(limit);
-  setGitRootCacheLimit(limit);
-  updateGitCaches();
-  if (!CACHE_ENABLED) clearCaches();
 }
 
 async function toggleEnabled() {
@@ -370,7 +317,7 @@ async function toggleEnabled() {
   await config.update('enabled', nextState);
 
   if (!currentState) {
-    refresh();
+    await refresh();
   } else {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
@@ -383,6 +330,5 @@ async function toggleEnabled() {
 module.exports = {
   refresh,
   clearCaches,
-  updateCacheSettings,
   toggleEnabled,
 };

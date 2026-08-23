@@ -1,10 +1,12 @@
 # Inline Blame Mini
 
-[![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini)
+[![Open VSX](https://img.shields.io/open-vsx/v/JoaoPauloCMarra/inline-blame-mini)](https://open-vsx.org/extension/JoaoPauloCMarra/inline-blame-mini)
+[![Cursor](https://img.shields.io/badge/Cursor-compatible-000000.svg)](https://www.cursor.com/)
 [![VS Code](https://img.shields.io/badge/VS_Code-1.96+-blue.svg)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
-Lightweight inline Git blame for VS Code. It shows the author, relative time, and commit summary for the line under your cursor without opening a separate blame view.
+Lightweight inline Git blame for VS Code and Cursor. It shows the author, relative time, and commit summary for the line under your cursor without opening a separate blame view.
 
 ![Inline blame shown at the end of a code line](screenshots/blame-line.png)
 
@@ -15,23 +17,26 @@ Lightweight inline Git blame for VS Code. It shows the author, relative time, an
 - Status bar summary for the active file
 - Commit detail panel from the command palette
 - Configurable text format, color, font style, font size, margin, and file filters
-- Bounded caches, debounced editor events, Git timeouts, and stale-result guards
+- Batched Git blame, bounded caches, async file checks, and stale-result guards
 - Nested Git repository support inside larger VS Code workspaces
 
 ## Install
 
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini), or build a local VSIX:
+- **VS Code:** install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=JoaoPauloCMarra.inline-blame-mini).
+- **Cursor:** search for `Inline Blame Mini` in the Extensions panel. Cursor distributes third-party extensions through [Open VSX](https://open-vsx.org/extension/JoaoPauloCMarra/inline-blame-mini).
+
+You can also build a local VSIX:
 
 ```sh
-bun install
+bun ci
 bun run package
 ```
 
-Then install the generated `.vsix` from VS Code with `Extensions: Install from VSIX...`.
+Then install the generated `.vsix` from VS Code or Cursor with `Extensions: Install from VSIX...`.
 
 ## Requirements
 
-- VS Code `1.96.0` or newer
+- VS Code `1.96.0` or newer, or a compatible Cursor release
 - Git available on `PATH`
 - A saved file tracked by Git
 
@@ -55,8 +60,6 @@ Available format tokens:
 - `{timeAgo}`
 - `{summary}`
 - `{hash}`
-- `{prNumber}`
-- `{pr}`
 
 ## Commands
 
@@ -75,7 +78,6 @@ Available format tokens:
   "inline-blame-mini.enabled": true,
   "inline-blame-mini.format": "{author}, {timeAgo} • {summary}",
   "inline-blame-mini.summaryMaxLength": 60,
-  "inline-blame-mini.showOnlyWhenChanged": true,
   "inline-blame-mini.style.position": "end-of-line",
   "inline-blame-mini.style.color": "rgba(136, 136, 136, 0.7)",
   "inline-blame-mini.statusBar.enabled": true,
@@ -104,21 +106,24 @@ You can also run `Inline Blame Mini: Show Troubleshooting Guide` from the comman
 ## Development
 
 ```sh
-bun install
-bun test
+bun ci
+bun run test
 bun run lint
 bun run format:check
 bun run test:extension
+bun run test:extension:latest
+bun run verify:cursor-install
 bun run release:check
 ```
 
-The extension smoke test launches a VS Code extension host against a temporary nested Git repository. The generated `.vscode-test` directory is ignored by linting and packaging.
+The default extension smoke test runs against the minimum supported VS Code version. `test:extension:latest` checks the current stable release, and `verify:cursor-install` installs the packaged VSIX through an isolated Cursor profile. The generated `.vscode-test` directory is ignored by linting and packaging.
 
 ## Packaging
 
-`bun run release:check` runs tests, lint, formatting checks, packages the VSIX, and installs it through a temporary VS Code profile. After publishing, run `bun run verify:marketplace-install` before announcing the release. The packaged extension includes only runtime files:
+`bun run release:check` runs tests, lint, formatting checks, packages the VSIX, and installs it through temporary VS Code and Cursor profiles. After publishing, run `bun run verify:marketplace-install` before announcing the release. The packaged extension includes only runtime files:
 
 - `LICENSE.md`
+- `CHANGELOG.md`
 - `icon.png`
 - `package.json`
 - `README.md`
