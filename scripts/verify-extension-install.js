@@ -1,30 +1,36 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
 const packageJson = require(path.join(rootDir, 'package.json'));
 
-function getCli() {
+function getMode() {
+  return process.argv[2] || 'local';
+}
+
+function getCli(mode) {
+  if (mode === 'cursor') {
+    return process.env.CURSOR_CLI || 'cursor';
+  }
+
   return process.env.VSCODE_CLI || 'code-insiders';
 }
 
-function getTarget() {
-  const mode = process.argv[2] || 'local';
-
+function getTarget(mode) {
   if (mode === 'marketplace') {
     return `${packageJson.publisher}.${packageJson.name}`;
   }
 
-  if (mode !== 'local') {
+  if (mode !== 'local' && mode !== 'cursor') {
     throw new Error(`Unknown install verification mode: ${mode}`);
   }
 
   return path.join(rootDir, `${packageJson.name}-${packageJson.version}.vsix`);
 }
 
-function runInstall(target) {
+function runInstall(cli, target) {
   const tempRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), 'inline-blame-install-')
   );
@@ -33,7 +39,7 @@ function runInstall(target) {
 
   try {
     const result = spawnSync(
-      getCli(),
+      cli,
       [
         '--user-data-dir',
         userDataDir,
@@ -47,6 +53,7 @@ function runInstall(target) {
         cwd: rootDir,
         encoding: 'utf8',
         stdio: 'pipe',
+        timeout: 120_000,
       }
     );
 
@@ -63,13 +70,14 @@ function runInstall(target) {
 }
 
 function main() {
-  const target = getTarget();
+  const mode = getMode();
+  const target = getTarget(mode);
 
   if (target.endsWith('.vsix') && !fs.existsSync(target)) {
     throw new Error(`Missing VSIX: ${target}`);
   }
 
-  runInstall(target);
+  runInstall(getCli(mode), target);
 }
 
 try {

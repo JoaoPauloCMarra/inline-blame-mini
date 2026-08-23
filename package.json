@@ -1,8 +1,9 @@
 {
   "name": "inline-blame-mini",
   "displayName": "Inline Blame Mini",
-  "description": "Lightweight git blame information for the current cursor line",
-  "version": "0.1.6",
+  "description": "Lightweight Git blame for the current line in VS Code and Cursor",
+  "version": "0.2.0",
+  "packageManager": "bun@1.4.0",
   "publisher": "JoaoPauloCMarra",
   "license": "MIT",
   "icon": "icon.png",
@@ -18,7 +19,8 @@
     "blame",
     "scm",
     "inline",
-    "lightweight"
+    "lightweight",
+    "cursor"
   ],
   "repository": {
     "type": "git",
@@ -76,7 +78,7 @@
         "inline-blame-mini.format": {
           "type": "string",
           "default": "{author}, {timeAgo} • {summary}",
-          "description": "Format template for inline blame text. Available variables: {author}, {timeAgo}, {summary}, {hash}, {prNumber}"
+          "description": "Format template for inline blame text. Available variables: {author}, {timeAgo}, {summary}, {hash}"
         },
         "inline-blame-mini.summaryMaxLength": {
           "type": "number",
@@ -84,11 +86,6 @@
           "minimum": 10,
           "maximum": 200,
           "description": "Maximum length of commit summary before truncation"
-        },
-        "inline-blame-mini.showOnlyWhenChanged": {
-          "type": "boolean",
-          "default": true,
-          "description": "Only show blame when cursor moves to a different line"
         },
         "inline-blame-mini.style.color": {
           "type": "string",
@@ -153,30 +150,27 @@
   },
   "scripts": {
     "lint": "bunx eslint .",
-    "test": "bun test",
-    "test:extension": "bun scripts/run-extension-tests.js",
+    "test": "bun test --isolate",
+    "test:extension": "bun scripts/run-extension-tests.js 1.96.0",
+    "test:extension:latest": "bun scripts/run-extension-tests.js stable",
     "lint:fix": "bunx eslint . --fix",
     "format:check": "bunx prettier --check .",
     "format": "bun run lint:fix && bunx prettier --write .",
-    "package": "bunx vsce package",
+    "package": "bunx vsce package --no-dependencies",
     "build": "bun run package",
     "verify:package-install": "bun scripts/verify-extension-install.js local",
+    "verify:cursor-install": "bun scripts/verify-extension-install.js cursor",
     "verify:marketplace-install": "bun scripts/verify-extension-install.js marketplace",
-    "release:check": "bun test && bun run test:extension && bun run lint && bun run format:check && bun run package && bun run verify:package-install",
+    "release:check": "bun run test && bun run test:extension && bun run test:extension:latest && bun run lint && bun run format:check && bun run package && bun run verify:package-install && bun run verify:cursor-install",
     "vscode:prepublish": "bun run lint && bun run format:check",
-    "publish": "bunx vsce publish"
+    "publish": "bunx vsce publish --no-dependencies"
   },
-  "extensionDependencies": [
-    "vscode.git"
-  ],
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "10.0.1",
     "@types/vscode": "1.96.0",
-    "@vscode/test-electron": "^2.5.2",
-    "@vscode/vsce": "^3.9.1",
-    "eslint": "^9.39.4",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "prettier": "^3.8.3"
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2",
+    "eslint": "10.9.0",
+    "prettier": "3.9.6"
   }
 }

@@ -1,11 +1,21 @@
 const vscode = require('vscode');
-const path = require('path');
+const path = require('node:path');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
 const { findGitRoot, LRUCache } = require('./utils');
 const { CACHE_MAX_SIZE, GIT_TIMEOUT_MS } = require('./constants');
-const { execFile } = require('child_process');
+
+const execFileAsync = promisify(execFile);
 
 const userCache = new LRUCache(CACHE_MAX_SIZE);
-const fileCache = new LRUCache(CACHE_MAX_SIZE);
+
+function runGit(args, cwd) {
+  return execFileAsync('git', args, {
+    cwd,
+    timeout: GIT_TIMEOUT_MS,
+    maxBuffer: 1024 * 1024,
+  });
+}
 
 function getGitContext(file) {
   const gitRoot = findGitRoot(file);
@@ -41,61 +51,43 @@ function getGitContextOrError(file) {
   return { context: null, error };
 }
 
-function blameLine(file, line, callback) {
+async function blameRange(file, startLine, endLine) {
+  const { context, error } = getGitContextOrError(file);
+  if (error) {
+    throw error;
+  }
+
+  const { cwd, relativePath } = context;
+
   try {
-    const { context, error } = getGitContextOrError(file);
-    if (error) {
-      callback(null, error);
-      return;
-    }
-
-    const { cwd, relativePath } = context;
-
-    execFile(
-      'git',
+    const { stdout } = await runGit(
       [
         'blame',
         '-L',
-        `${line},${line}`,
+        `${startLine},${endLine}`,
         '--line-porcelain',
-        '--no-merges', // Skip merge commits for cleaner history
+        '--no-merges',
         '--',
         relativePath,
       ],
-      {
-        cwd: cwd,
-        timeout: GIT_TIMEOUT_MS,
-        maxBuffer: 1024 * 1024,
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          const err = categorizeGitError(error, stderr);
-          callback(null, err);
-          return;
-        }
-
-        if (!stdout.trim()) {
-          callback(null, {
-            type: 'NO_BLAME_DATA',
-            message: 'No blame data available for this line',
-          });
-          return;
-        }
-
-        parseBlameFromGit(stdout.trim(), cwd, (blameData, parseError) => {
-          if (parseError) {
-            callback(null, parseError);
-          } else {
-            callback(blameData, null);
-          }
-        });
-      }
+      cwd
     );
+
+    if (!stdout.trim()) {
+      throw {
+        type: 'NO_BLAME_DATA',
+        message: 'No blame data available for this range',
+      };
+    }
+
+    const currentUser = await getCurrentGitUser(cwd);
+    return parseBlameFromGit(stdout.trim(), currentUser);
   } catch (error) {
-    callback(null, {
-      type: 'EXECUTION_ERROR',
-      message: `Failed to execute git blame: ${error.message}`,
-    });
+    if (error.type) {
+      throw error;
+    }
+
+    throw categorizeGitError(error, error.stderr);
   }
 }
 
@@ -155,195 +147,175 @@ function categorizeGitError(err, stderr) {
   };
 }
 
-function parseBlameFromGit(blameOutput, cwd, callback) {
+function parseBlameFromGit(blameOutput, currentUser) {
   try {
     const lines = blameOutput.split('\n');
-    if (lines.length < 10) {
-      callback(null, {
-        type: 'PARSE_ERROR',
-        message: 'Invalid git blame output format',
-      });
-      return;
-    }
+    const blames = new Map();
+    let record = null;
 
-    const firstLineParts = lines[0].trim().split(/\s+/);
-    const hash = firstLineParts[0];
+    for (const line of lines) {
+      const header = line.match(/^([0-9a-f]{40}) \d+ (\d+)(?: \d+)?$/);
+      if (header) {
+        record = {
+          hash: header[1],
+          line: Number(header[2]),
+          author: 'Unknown',
+          authorEmail: '',
+          time: Date.now() / 1000,
+          summary: 'No commit message',
+        };
+        continue;
+      }
 
-    let author = 'Unknown';
-    let authorEmail = '';
-    let authorTime = Date.now() / 1000;
-    let summary = 'No commit message';
+      if (!record) {
+        continue;
+      }
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
       if (line.startsWith('author ')) {
-        author = line.substring(7).trim();
+        record.author = line.substring(7).trim();
       } else if (line.startsWith('author-mail ')) {
-        authorEmail = line.substring(12).trim();
-        if (authorEmail.startsWith('<') && authorEmail.endsWith('>')) {
-          authorEmail = authorEmail.slice(1, -1);
+        record.authorEmail = line.substring(12).trim();
+        if (
+          record.authorEmail.startsWith('<') &&
+          record.authorEmail.endsWith('>')
+        ) {
+          record.authorEmail = record.authorEmail.slice(1, -1);
         }
       } else if (line.startsWith('author-time ')) {
-        authorTime = parseInt(line.substring(11).trim());
+        record.time = Number(line.substring(12).trim());
       } else if (line.startsWith('summary ')) {
-        summary = line.substring(8).trim();
+        record.summary = line.substring(8).trim();
+      } else if (line.startsWith('\t')) {
+        blames.set(record.line, formatBlameRecord(record, currentUser));
+        record = null;
       }
     }
 
-    if (hash === '0000000000000000000000000000000000000000') {
-      callback(
-        {
-          author: 'You',
-          time: Date.now() / 1000,
-          summary: 'Not committed yet',
-          hash: 'uncommitted',
-          isUncommitted: true,
-        },
-        null
-      );
-      return;
+    if (blames.size === 0) {
+      throw new Error('Invalid git blame output format');
     }
 
-    getCurrentGitUser(cwd, currentUser => {
-      const isCurrentUser =
-        currentUser &&
-        (currentUser.email === authorEmail || currentUser.name === author);
-
-      callback(
-        {
-          author: isCurrentUser ? 'You' : author,
-          authorEmail: authorEmail,
-          time: authorTime,
-          summary: summary,
-          hash: hash.substring(0, 8),
-          prNumber: null,
-        },
-        null
-      );
-    });
+    return blames;
   } catch (error) {
-    callback(null, {
+    throw {
       type: 'PARSE_ERROR',
       message: `Failed to parse git blame output: ${error.message}`,
-    });
+    };
   }
 }
 
-function getFileLastCommit(file, callback) {
-  const cacheKey = file;
-  const cached = fileCache.get(cacheKey);
-  if (cached !== undefined) {
-    callback(cached.data, cached.error);
-    return;
+function formatBlameRecord(record, currentUser) {
+  if (record.hash === '0000000000000000000000000000000000000000') {
+    return {
+      author: 'You',
+      time: Date.now() / 1000,
+      summary: 'Not committed yet',
+      hash: 'uncommitted',
+      isUncommitted: true,
+    };
   }
+
+  const isCurrentUser =
+    currentUser &&
+    (currentUser.email === record.authorEmail ||
+      currentUser.name === record.author);
+
+  return {
+    author: isCurrentUser ? 'You' : record.author,
+    authorEmail: record.authorEmail,
+    time: record.time,
+    summary: record.summary,
+    hash: record.hash.substring(0, 8),
+  };
+}
+
+async function getFileLastCommit(file) {
+  const gitContext = getGitContextOrError(file);
+  if (gitContext.error) {
+    throw gitContext.error;
+  }
+
+  const { cwd, relativePath } = gitContext.context;
 
   try {
-    const gitContext = getGitContextOrError(file);
-    if (gitContext.error) {
-      const error = gitContext.error;
-      fileCache.set(cacheKey, { data: null, error });
-      callback(null, error);
-      return;
+    const { stdout } = await runGit(
+      ['log', '-1', '--format=%h%x00%an%x00%at', '--', relativePath],
+      cwd
+    );
+
+    if (!stdout.trim()) {
+      throw {
+        type: 'FILE_NOT_TRACKED',
+        message: 'File has no git history',
+      };
     }
 
-    const { cwd, relativePath } = gitContext.context;
-
-    execFile(
-      'git',
-      ['log', '--oneline', '-1', '--', relativePath],
-      { cwd: cwd },
-      (error, stdout, stderr) => {
-        if (error) {
-          const err = {
-            type: 'EXECUTION_ERROR',
-            message: `Failed to get file commit history: ${stderr || error.message}`,
-          };
-          fileCache.set(cacheKey, { data: null, error: err });
-          callback(null, err);
-          return;
-        }
-
-        if (!stdout.trim()) {
-          const error = {
-            type: 'FILE_NOT_TRACKED',
-            message: 'File has no git history',
-          };
-          fileCache.set(cacheKey, { data: null, error });
-          callback(null, error);
-          return;
-        }
-
-        const line = stdout.trim().split(' ');
-        const hash = line[0];
-
-        getCurrentGitUser(cwd, currentUser => {
-          const result = {
-            author: currentUser ? currentUser.name : 'Unknown',
-            time: Date.now() / 1000,
-            hash: hash.substring(0, 8),
-          };
-
-          fileCache.set(cacheKey, { data: result, error: null });
-
-          callback(result, null);
-        });
-      }
-    );
-  } catch (error) {
-    const err = {
-      type: 'EXECUTION_ERROR',
-      message: `Failed to execute git command: ${error.message}`,
+    const [hash, author, timestamp] = stdout.trim().split('\0');
+    return {
+      author,
+      time: Number(timestamp),
+      hash: hash.substring(0, 8),
     };
-    fileCache.set(cacheKey, { data: null, error: err });
-    callback(null, err);
-  }
-}
-
-function getCurrentGitUser(cwd, callback) {
-  if (userCache.has(cwd)) {
-    callback(userCache.get(cwd));
-    return;
-  }
-
-  execFile('git', ['config', 'user.name'], { cwd: cwd }, (error, stdout) => {
-    if (error || !stdout.trim()) {
-      userCache.set(cwd, null);
-      callback(null);
-      return;
+  } catch (error) {
+    if (error.type) {
+      throw error;
     }
 
-    const name = stdout.trim();
+    throw {
+      type: 'EXECUTION_ERROR',
+      message: `Failed to get file commit history: ${error.stderr || error.message}`,
+    };
+  }
+}
 
-    execFile(
-      'git',
-      ['config', 'user.email'],
-      { cwd: cwd },
-      (emailError, emailStdout) => {
-        const user =
-          !emailError && emailStdout.trim()
-            ? { name, email: emailStdout.trim() }
-            : null;
-        userCache.set(cwd, user);
-        callback(user);
-      }
+async function getCurrentGitUser(cwd) {
+  const cached = userCache.get(cwd);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const request = readCurrentGitUser(cwd);
+  userCache.set(cwd, request);
+  return request;
+}
+
+async function readCurrentGitUser(cwd) {
+  try {
+    const { stdout } = await runGit(
+      ['config', '--null', '--get-regexp', '^user\\.(name|email)$'],
+      cwd
     );
-  });
+    const user = {};
+
+    for (const entry of stdout.split('\0')) {
+      const separator = entry.indexOf('\n');
+      if (separator === -1) {
+        continue;
+      }
+
+      const key = entry.slice(0, separator);
+      const value = entry.slice(separator + 1);
+      if (key === 'user.name') user.name = value;
+      if (key === 'user.email') user.email = value;
+    }
+
+    return user.name || user.email ? user : null;
+  } catch (error) {
+    return null;
+  }
 }
 
-function checkGitAvailability(callback) {
-  execFile('git', ['--version'], error => {
-    callback(!error);
-  });
-}
-
-function updateCacheSettings() {
-  userCache.setLimit(CACHE_MAX_SIZE);
-  fileCache.setLimit(CACHE_MAX_SIZE);
+async function checkGitAvailability() {
+  try {
+    await runGit(['--version']);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 module.exports = {
-  blameLine,
+  blameRange,
   getFileLastCommit,
   checkGitAvailability,
-  updateCacheSettings,
 };

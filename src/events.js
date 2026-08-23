@@ -1,7 +1,8 @@
 const vscode = require('vscode');
 const { debounce } = require('./utils');
-const { refresh, clearCaches, updateCacheSettings } = require('./core');
+const { refresh, clearCaches } = require('./core');
 const { clearDecorations, setFileStatusBar } = require('./ui');
+const config = require('./config');
 const {
   DEBOUNCE_DELAY,
   SAVE_DEBOUNCE_DELAY,
@@ -19,10 +20,6 @@ function hookEvents() {
     }
   };
 
-  const refreshAfterSelectionChange = debounce(
-    refreshIfActiveDocument,
-    DEBOUNCE_DELAY
-  );
   const refreshAfterDocumentChange = debounce(
     refreshIfActiveDocument,
     CHANGE_DEBOUNCE_DELAY
@@ -50,7 +47,7 @@ function hookEvents() {
       const currentLine = event.textEditor.selection.active.line;
       if (currentLine !== lastLine) {
         lastLine = currentLine;
-        refreshAfterSelectionChange(event.textEditor.document);
+        refreshIfActiveDocument(event.textEditor.document);
       }
     }, DEBOUNCE_DELAY)
   );
@@ -59,6 +56,7 @@ function hookEvents() {
     debounce(document => {
       const editor = vscode.window.activeTextEditor;
       if (editor && document === editor.document) {
+        clearCaches();
         refresh();
       }
     }, SAVE_DEBOUNCE_DELAY)
@@ -92,8 +90,8 @@ function hookEvents() {
 
   const onConfigChange = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration('inline-blame-mini')) {
+      config.clearCache();
       clearCaches();
-      updateCacheSettings();
       refresh();
     }
   });

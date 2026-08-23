@@ -1,7 +1,7 @@
 const { afterEach, expect, test } = require('bun:test');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { findGitRoot } = require('../src/utils');
 
 const originalCwd = process.cwd();
@@ -38,6 +38,18 @@ test('findGitRoot resolves relative file paths before walking parents', () => {
 test('findGitRoot walks absolute file paths to the repository root', () => {
   const { repoRoot, nestedDir } = createRepoFixture();
   const filePath = path.join(nestedDir, 'file.js');
+
+  expect(findGitRoot(filePath)).toBe(repoRoot);
+});
+
+test('findGitRoot observes a repository initialized after the first lookup', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'inline-blame-mini-'));
+  const filePath = path.join(repoRoot, 'file.js');
+  tempDirs.push(repoRoot);
+
+  expect(findGitRoot(filePath)).toBe(null);
+
+  fs.mkdirSync(path.join(repoRoot, '.git'));
 
   expect(findGitRoot(filePath)).toBe(repoRoot);
 });

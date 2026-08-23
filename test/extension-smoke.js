@@ -1,4 +1,4 @@
-const assert = require('assert');
+const assert = require('node:assert');
 
 const vscode = require('vscode');
 
@@ -44,7 +44,6 @@ async function run() {
       author: '<author>',
       time: Date.now() / 1000,
       summary: '<script>alert(1)</script>',
-      prNumber: null,
     }).includes('&lt;script&gt;alert(1)&lt;/script&gt;')
   );
 

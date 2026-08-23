@@ -1,86 +1,136 @@
 const vscode = require('vscode');
 const { CONFIG_SECTION } = require('./constants');
 
-function simpleGlobMatch(pattern, str) {
-  if (pattern === '**/*' || pattern === '*') return true;
-  if (!pattern.includes('*') && !pattern.includes('?'))
-    return str.includes(pattern);
+let cachedSettings = null;
 
-  const regex = pattern
-    .replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
-    .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\?/g, '.');
+function createGlobMatcher(pattern) {
+  const normalizedPattern = pattern.replaceAll('\\', '/');
+  if (normalizedPattern === '**/*' || normalizedPattern === '*') {
+    return () => true;
+  }
 
-  return new RegExp(`^${regex}$`).test(str);
+  if (!normalizedPattern.includes('*') && !normalizedPattern.includes('?')) {
+    return filePath => filePath.includes(normalizedPattern);
+  }
+
+  let regex = '';
+  for (let index = 0; index < normalizedPattern.length; index++) {
+    const character = normalizedPattern[index];
+    if (character === '*' && normalizedPattern[index + 1] === '*') {
+      if (normalizedPattern[index + 2] === '/') {
+        regex += '(?:.*/)?';
+        index += 2;
+      } else {
+        regex += '.*';
+        index += 1;
+      }
+    } else if (character === '*') {
+      regex += '[^/]*';
+    } else if (character === '?') {
+      regex += '[^/]';
+    } else {
+      regex += character.replace(/[|\\{}()[\]^$+?.-]/g, '\\$&');
+    }
+  }
+
+  const matcher = new RegExp(`^${regex}$`);
+  return filePath => matcher.test(filePath);
 }
 
 function getConfig() {
   return vscode.workspace.getConfiguration(CONFIG_SECTION);
 }
 
-function get(key, defaultValue = undefined) {
+function readSettings() {
   const config = getConfig();
-  return config.get(key, defaultValue);
+  const includeFiles = config.get('includeFiles', ['**/*']);
+  const excludeFiles = config.get('excludeFiles', []);
+
+  return {
+    enabled: config.get('enabled', true),
+    format: config.get('format', '{author}, {timeAgo} • {summary}'),
+    summaryMaxLength: Math.max(
+      10,
+      Math.min(200, config.get('summaryMaxLength', 60))
+    ),
+    style: {
+      color: config.get('style.color', 'rgba(136, 136, 136, 0.7)'),
+      fontStyle: config.get('style.fontStyle', 'italic'),
+      fontSize: config.get('style.fontSize', '0.9em'),
+      margin: config.get('style.margin', '0 0 0 1rem'),
+      position: config.get('style.position', 'end-of-line'),
+    },
+    statusBarEnabled: config.get('statusBar.enabled', true),
+    includeFiles,
+    excludeFiles,
+    includeMatchers: includeFiles.map(createGlobMatcher),
+    excludeMatchers: excludeFiles.map(createGlobMatcher),
+  };
 }
 
-function update(
+function getSettings() {
+  if (!cachedSettings) {
+    cachedSettings = readSettings();
+  }
+
+  return cachedSettings;
+}
+
+function clearCache() {
+  cachedSettings = null;
+}
+
+async function update(
   key,
   value,
   configurationTarget = vscode.ConfigurationTarget.Workspace
 ) {
   const config = getConfig();
-  return config.update(key, value, configurationTarget);
+  await config.update(key, value, configurationTarget);
+  clearCache();
 }
 
 function isEnabled() {
-  return get('enabled', true);
+  return getSettings().enabled;
 }
 
 function getFormat() {
-  return get('format', '{author}, {timeAgo} • {summary}');
+  return getSettings().format;
 }
 
 function getSummaryMaxLength() {
-  return Math.max(10, Math.min(200, get('summaryMaxLength', 60)));
-}
-
-function shouldShowOnlyWhenChanged() {
-  return get('showOnlyWhenChanged', true);
+  return getSettings().summaryMaxLength;
 }
 
 function getStyleConfig() {
-  return {
-    color: get('style.color', 'rgba(136, 136, 136, 0.7)'),
-    fontStyle: get('style.fontStyle', 'italic'),
-    fontSize: get('style.fontSize', '0.9em'),
-    margin: get('style.margin', '0 0 0 1rem'),
-    position: get('style.position', 'end-of-line'),
-  };
+  return getSettings().style;
 }
 
 function getStatusBarConfig() {
   return {
-    enabled: get('statusBar.enabled', true),
+    enabled: getSettings().statusBarEnabled,
   };
 }
 
 function getFileFilters() {
+  const settings = getSettings();
   return {
-    include: get('includeFiles', ['**/*']),
-    exclude: get('excludeFiles', []),
+    include: settings.includeFiles,
+    exclude: settings.excludeFiles,
   };
 }
 
 function shouldProcessFile(filePath) {
-  const filters = getFileFilters();
+  const settings = getSettings();
+  const relativePath = vscode.workspace
+    .asRelativePath(filePath, false)
+    .replaceAll('\\', '/');
 
-  const isIncluded = filters.include.some(pattern =>
-    simpleGlobMatch(pattern, filePath)
+  const isIncluded = settings.includeMatchers.some(matches =>
+    matches(relativePath)
   );
-
-  const isExcluded = filters.exclude.some(pattern =>
-    simpleGlobMatch(pattern, filePath)
+  const isExcluded = settings.excludeMatchers.some(matches =>
+    matches(relativePath)
   );
 
   return isIncluded && !isExcluded;
@@ -88,24 +138,20 @@ function shouldProcessFile(filePath) {
 
 function formatBlameText(data, template = null) {
   const format = template || getFormat();
-  const prText = data.prNumber ? ` via PR #${data.prNumber}` : '';
 
   return format
-    .replace('{author}', data.author || 'Unknown')
-    .replace('{timeAgo}', data.timeAgo || 'unknown time')
-    .replace('{summary}', data.summary || 'No message')
-    .replace('{hash}', data.hash || '')
-    .replace('{prNumber}', data.prNumber || '')
-    .replace('{pr}', prText);
+    .replaceAll('{author}', data.author || 'Unknown')
+    .replaceAll('{timeAgo}', data.timeAgo || 'unknown time')
+    .replaceAll('{summary}', data.summary || 'No message')
+    .replaceAll('{hash}', data.hash || '');
 }
 
 module.exports = {
-  get,
+  clearCache,
   update,
   isEnabled,
   getFormat,
   getSummaryMaxLength,
-  shouldShowOnlyWhenChanged,
   getStyleConfig,
   getStatusBarConfig,
   getFileFilters,
